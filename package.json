@@ -1,0 +1,11 @@
+{
+  "name": "ruruDB",
+  "version": "1.0.0",
+  "description": "db",
+  "main": "index.js",
+  "author": "davalapar <davalapar@gmail.com>",
+  "license": "MIT",
+  "dependencies": {
+    "@types/node": "^10.12.19"
+  }
+}
