@@ -1,7 +1,24 @@
 
+/**
+ * Definitions:
+ */
+
+// Imports
 import path from 'path';
 import { fork } from 'child_process';
-import { promises } from 'fs';
+
+// Types
+type Queue = NonNullable<[Function, Function]>[];
+type Message = [string[]|null, object[]|null];
+type NonUndefined<X> = X extends undefined ? never : X;
+// Functions
+const createError = (message: string, stack: string): Error => {
+  const error = Error(message);
+  error.stack = stack;
+  return error;
+};
+
+const queue: Queue = [];
 
 const proc = fork(
   path.resolve(__dirname, './proc.js'),
@@ -12,19 +29,17 @@ const proc = fork(
 
 proc.stdout.pipe(process.stdout);
 
-const queue:Array<[Function, Function]> = [];
-
-const createError = (message: string, stack: string): Error => {
-  const error = Error(message);
-  error.stack = stack;
-  return error;
-};
-
-queue.push([console.log, console.error]);
-
-proc.on('message', ([error, result]: [string[]|null, object[]|null]) => {
-  const shifted = queue.shift();
-  if (shifted !== undefined) {
-    const [resolve, reject] = shifted;
+proc.on('message', ([error, result]: Message) => {
+  const [resolve, reject] = (queue.shift() as NonUndefined<[Function, Function]>);
+  if (error) {
+    const [message, stack] = error;
+    reject(createError(message, stack));
+  } else {
+    resolve(result);
   }
+});
+
+export const sendToProc: Function = (action: Function, ...parameters: []) : Promise<object|null> => new Promise((resolve, reject) => {
+  queue.push([resolve, reject]);
+  proc.send([action, parameters]);
 });
