@@ -1,42 +1,27 @@
 
 import {
-  useDatabase,
-  useTable,
-  clearTable,
-  insertItem,
-  updateItem,
-  updateItemByID,
-  mergeItemByID,
-  removeItem,
-  removeItemByID,
-  getItemID,
-  getItemByID,
-  removeTable,
-  Item,
+  Database,
+  Query,
 }  from './index';
 
-(async () => {
-  useDatabase('yeah', './temp');
-  const users = useTable('users');
-  clearTable(users);
-  interface User {
-    name: string;
-    age?: number;
-  }
-  let alice = insertItem(users, { name: 'alice' }, 'alice-id');
-  let bob = insertItem(users, { name: 'bob' }, 'bob-id');
-  alice['asd'] = 25;
-  updateItem(alice);
-  bob = updateItemByID(users, 'bob-id', { name: 'bob', age: 25 });
-  bob = mergeItemByID(users, 'bob-id', { role: 'moderator' });
-  removeItem(bob);
-  removeItemByID(users, 'alice-id');
-  let cathy = insertItem(users, { name: 'cathy' }, 'cathy-id');
-  console.log(getItemID(cathy));
-  console.log(getItemByID(users, 'cathy-id'));
-  console.log({ alice, bob });
-  removeTable(users);
-  console.log({ users });
-})()
-  .then(console.log)
-  .catch(console.error);
+// Test
+interface User {
+  name: string;
+  age: number;
+}
+const db = new Database('asd', './temp');
+
+const users = db.useTable <User> ('users');
+
+console.log({ users });
+
+users.insertItem('alice', {
+  name: 'alice',
+  age: 25
+});
+
+console.log({ users });
+
+const results = new Query(users).results();
+
+console.log({ results });

@@ -7,394 +7,16 @@ import {
   readFileSync,
 } from 'fs';
 
-let dbInitialized = false;
-let dbLabel = '';
-let dbDirectory = '';
-let dbMainFile = '';
-let dbTempFile = '';
-let dbOldFile = '';
+import _ from 'lodash';
 
-const ItemTableLabel: string = Symbol('Item.Table') as unknown as string;
-const ItemId: string = Symbol('Item.Id') as unknown as string;
+type Methods = Record<string, Function>;
+type Values = string|number|boolean|null|undefined
 
-export type Values = string|number|boolean|undefined|null;
-export type PlainArray = Values[];
-export type PlainObject = Record<string, Values>
-export type ItemValues = Values|PlainArray|PlainObject;
-export type ItemId = string|number;
-export type Item = Record<string, ItemValues>;
+// Symbols
+const ItemId = Symbol('Item.Id');
+const ItemTableLabel = Symbol('Item.TableLabel');
 
-interface Table<Item> {
-  Label: string;
-  Ids: ItemId[];
-  Items: Item[];
-  Index: Map<ItemId, Item>;
-}
-
-const create = <T> () : Map<string, Table<T>> => {
-  return new Map();
-};
-
-const dbTables: Map<string, any> = new Map();
-
-const loadDatabase = () : void => {
-  dbTables.clear();
-  const dbDataString: string = readFileSync(dbMainFile, 'utf8');
-  const dbData = JSON.parse(dbDataString);
-  for (let a = 0, b = dbData.length; a < b; a += 1) {
-    const [label, ids, items] = dbData[a];
-    if (Array.isArray(ids) === false) {
-      throw Error('Unexpected non-array @ loaded "ids"');
-    }
-    if (Array.isArray(items) === false) {
-      throw Error('Unexpected non-array @ loaded "items"');
-    }
-    const table: Table = {
-      Label: label,
-      Ids: ids,
-      Items: items,
-      Index: new Map(),
-    };
-    for (let c = 0, d = items.length; c < d; c += 1) {
-      ((table.Index as Map<string, Item>).set as Function)(ids[c], items[c]);
-    }
-    dbTables.set(label, table);
-  }
-};
-
-const saveDatabase = () : void => {
-  const tableEntries = Array.from(dbTables.entries());
-  const dbData = new Array(tableEntries.length);
-  for (let i = 0, l = tableEntries.length; i < l; i += 1) {
-    const [label, table] = tableEntries[i];
-    const ids = table.Ids;
-    const items = table.Items;
-    dbData[i] = [label, ids, items];
-  }
-  const dbDataString = JSON.stringify(dbData, null, 2);
-  if (existsSync(dbDirectory) === false) {
-    mkdirSync(dbDirectory, { recursive: true });
-  }
-  writeFileSync(dbTempFile, dbDataString, 'utf8');
-  if (existsSync(dbMainFile) === true) {
-    renameSync(dbMainFile, dbOldFile);
-  }
-  renameSync(dbTempFile, dbMainFile);
-};
-
-export const useDatabase = (label: string, directory: string) : void => {
-  if (dbInitialized) {
-    throw Error('Database already initialized.');
-  }
-  dbInitialized = true;
-  dbLabel = label;
-  dbDirectory = directory;
-  dbMainFile = dbDirectory.concat('/', dbLabel, '.rrdb');
-  dbTempFile = dbMainFile.concat('.temp');
-  dbOldFile = dbMainFile.concat('.old');
-  if (existsSync(dbMainFile)) {
-    loadDatabase();
-  } else {
-    saveDatabase();
-  }
-};
-
-export const useTable = <Item> (label: string) : Table<Item> => {
-  if (label === undefined) {
-    throw Error('Unexpected "undefined" "label"');
-  }
-  if (dbTables.has(label)) {
-    return dbTables.get(label) as Table<Item>;
-  } else {
-    const table: Table<Item> = {
-      Label: label,
-      Ids: [],
-      Items: [],
-      Index: new Map(),
-    };
-    dbTables.set(label, table);
-    saveDatabase();
-    return table;
-  }
-};
-
-export const useGenericTable = <T extends Item> (label: string) : GenericTable<T> => {
-  if (label === undefined) {
-    throw Error('Unexpected "undefined" "label"');
-  }
-  if (dbTables.has(label)) {
-    return dbTables.get(label) as GenericTable<T>;
-  } else {
-    const table: GenericTable<T> = {
-      Label: label,
-      Ids: [],
-      Items: [],
-      Index: new Map(),
-    };
-    dbTables.set(label, table);
-    saveDatabase();
-    return table;
-  }
-};
-
-const isPlainObject = (value: any) : boolean => { // eslint-disable-line @typescript-eslint/no-explicit-any
-  if (typeof value === 'object' && value !== null) {
-    if (Object.prototype.toString.call(value) === '[object Object]') {
-      let proto = value;
-      while (Object.getPrototypeOf(proto) !== null) {
-        proto = Object.getPrototypeOf(proto);
-      }
-      return Object.getPrototypeOf(value) === proto;
-    }
-    return false;
-  }
-  return false;
-};
-
-const copyArray = (target: PlainArray) : PlainArray => {
-  const clone: PlainArray = new Array(target.length);
-  for (let i = 0, l = target.length; i < l; i += 1) {
-    const key = i;
-    const value = target[key];
-    switch (typeof value) {
-      case 'boolean':
-      case 'string':
-        clone[key] = value;
-        break;
-      case 'number':
-        // boolean, string, number
-        if (Number.isNaN(value) === false && Number.isFinite(value)) {
-          clone[key] = value;
-        } else {
-          throw Error('Invalid "non-finite number" property value.');
-        }
-        break;
-      case 'function':
-        throw Error('Invalid "function" property value.');
-      case 'symbol':
-        throw Error('Invalid "symbol" property value.');
-      case 'undefined':
-        clone[key] = undefined;
-        break;
-      case 'object':
-        if (value === null) {
-          clone[key] = null;
-        }
-        break;
-      // no-default
-    }
-  }
-  return clone;
-};
-
-const copyObject = (target: PlainObject) : PlainObject => {
-  const clone: PlainObject = {};
-  const keys = Object.keys(target);
-  for (let i = 0, l = keys.length; i < l; i += 1) {
-    const key = keys[i];
-    const value = target[key];
-    switch (typeof value) {
-      case 'boolean':
-      case 'string':
-        clone[key] = value;
-        break;
-      case 'number':
-        // boolean, string, number
-        if (Number.isNaN(value) === false && Number.isFinite(value)) {
-          clone[key] = value;
-        } else {
-          throw Error('Invalid "non-finite number" property value.');
-        }
-        break;
-      case 'function':
-        throw Error('Invalid "function" property value.');
-      case 'symbol':
-        throw Error('Invalid "symbol" property value.');
-      case 'undefined':
-        clone[key] = undefined;
-        break;
-      case 'object':
-        if (value === null) {
-          clone[key] = null;
-        }
-        break;
-      // no-default
-    }
-  }
-  return clone;
-};
-
-const copyItem = (target: Item) : Item => {  
-  const clone: Item = {};
-  const keys = Object.keys(target);
-  for (let i = 0, l = keys.length; i < l; i += 1) {
-    const key = keys[i];
-    const value = target[key];
-    switch (typeof value) {
-      case 'boolean':
-      case 'string':
-        clone[key] = value;
-        break;
-      case 'number':
-        // boolean, string, number
-        if (Number.isNaN(value) === false && Number.isFinite(value)) {
-          clone[key] = value;
-        } else {
-          throw Error('Invalid "non-finite number" property value.');
-        }
-        break;
-      case 'function':
-        throw Error('Invalid "function" property value.');
-      case 'symbol':
-        throw Error('Invalid "symbol" property value.');
-      case 'undefined':
-        clone[key] = undefined;
-        break;
-      case 'object':
-        if (isPlainObject(value)) {
-          clone[key] = copyObject(value as PlainObject);
-        } else if (Array.isArray(value)) {
-          clone[key] = copyArray(value as PlainArray);
-        } else if (value === null) {
-          clone[key] = null;
-        }
-        break;
-      // no-default
-    }
-  }
-  return clone;
-};
-
-export const clearTable = (table: Table) : void => {
-  table.Ids = [];
-  table.Items = [];
-  table.Index.clear();
-  saveDatabase();
-};
-
-export const removeTable = (table: Table) : void => {
-  if (dbTables.has(table.Label) === false) {
-    throw Error('Invalid "Table", not found.');
-  }
-  dbTables.delete(table.Label);
-  saveDatabase();
-  delete table.Label;
-  delete table.Ids;
-  delete table.Items;
-  delete table.Index;
-};
-
-export const insertItem = <T extends Item> (table: Table, data: T|Item, id: string) : T|Item => {
-  if (table.Index.has(id)) {
-    throw Error('Invalid "Item", "id" already exists in table');
-  }
-  const item: Item = copyItem(data);
-  item[ItemId] = id;
-  item[ItemTableLabel] = table.Label;
-  table.Ids.push(id);
-  table.Items.push(item);
-  table.Index.set(id, item);
-  saveDatabase();
-  const copy: Item = copyItem(item);
-  copy[ItemId] = id;
-  copy[ItemTableLabel] = table.Label;
-  return copy;
-};
-
-export const updateItem = (modifiedItem: Item) : void => {
-  const table = dbTables.get(modifiedItem[ItemTableLabel] as string) as Table;
-  const id = modifiedItem[ItemId] as ItemId;
-  if (table.Index.has(id) === false) {
-    throw Error('Invalid "Item", "id" not found in table');
-  }
-  const item: Item = copyItem(modifiedItem);
-  item[ItemId] = id;
-  item[ItemTableLabel] = table.Label;
-  table.Items[table.Ids.indexOf(id)] = item;
-  table.Index.set(id, item);
-  saveDatabase();
-};
-
-export const updateItemByID = (table: Table, id: ItemId, data: Item) : Item => {
-  if (table.Index.has(id) === false) {
-    throw Error('Invalid "Item", "id" not found in table');
-  }
-  const item: Item = copyItem(data);
-  item[ItemId] = id;
-  item[ItemTableLabel] = table.Label;
-  table.Items[table.Ids.indexOf(id)] = item;
-  table.Index.set(id, item);
-  saveDatabase();
-  const copy: Item = copyItem(item);
-  copy[ItemId] = id;
-  copy[ItemTableLabel] = table.Label;
-  return copy;
-};
-
-export const mergeItemByID = (table: Table, id: ItemId, data: Item) : Item => {
-  if (table.Index.has(id) === false) {
-    throw Error('Invalid "Item", "id" not found in table');
-  }
-  const existing = table.Index.get(id);
-  const item: Item = {
-    ...existing,
-    ...copyItem(data)
-  };
-  item[ItemId] = id;
-  item[ItemTableLabel] = table.Label;
-  table.Items[table.Ids.indexOf(id)] = item;
-  table.Index.set(id, item);
-  saveDatabase();
-  const copy: Item = copyItem(item);
-  copy[ItemId] = id;
-  copy[ItemTableLabel] = table.Label;
-  return copy;
-};
-
-export const removeItem = (item: Item) : void => {
-  const table = dbTables.get(item[ItemTableLabel] as string) as Table;
-  const id = item[ItemId] as ItemId;
-  if (table.Index.has(id) === false) {
-    throw Error('Invalid "Item", "id" not found in table');
-  }
-  const index = table.Ids.indexOf(id);
-  table.Ids.splice(index, 1);
-  table.Items.splice(index, 1);
-  table.Index.delete(id);
-  saveDatabase();
-  delete item[ItemId];
-  delete item[ItemTableLabel];
-};
-
-export const removeItemByID = (table: Table, id: ItemId) : void => {
-  if (table.Index.has(id) === false) {
-    throw Error('Invalid "Item", "id" not found in table');
-  }
-  const index = table.Ids.indexOf(id);
-  table.Ids.splice(index, 1);
-  table.Items.splice(index, 1);
-  table.Index.delete(id);
-  saveDatabase();
-};
-
-export const getItemID = (item: Item) : ItemId => {
-  if (item[ItemId] === undefined) {
-    throw Error('Invalid "Item", "id" not found in table');
-  }
-  return item[ItemId] as ItemId;
-}
-
-export const getItemByID = (table: Table, id: ItemId) : Item => {
-  if (table.Index.has(id) === false) {
-    throw Error('Invalid "Item", "id" not found in table');
-  }
-  const item = table.Index.get(id) as Item;
-  const copy: Item = copyItem(item);
-  copy[ItemId] = id;
-  copy[ItemTableLabel] = table.Label;
-  return copy;
-}
-
+// Functions
 const compareString = (
   a: string,
   b: string,
@@ -406,151 +28,397 @@ const compareNumber = (
   descend: boolean
 ) : number => (descend ? b - a : a - b);
 
-type Methods = Record<string, Function>;
-
-export const createQuery = (table: Table) : Methods => {
-  let items = table.Items.slice();
-  let offset = 0;
-  let limit = items.length;
-  const sorts: [string, boolean][] = [];
-  let selectedFields: string[] = [];
-  let hiddenFields: string[] = [];
-  const methods: Methods = {
-    offset: (value: number) : Methods => {
-      offset = value;
-      return methods;
-    },
-    limit: (value: number) : Methods => {
-      limit = value;
-      return methods;
-    },
-    ascend: (field: string) : Methods => {
-      sorts.push([field, false]);
-      return methods;
-    },
-    descend: (field: string) : Methods => {
-      sorts.push([field, true]);
-      return methods;
-    },
-    gt: (field: string, value: number) : Methods => {
-      items = items.filter(item => item[field] as number > value);
-      return methods;
-    },
-    gte: (field: string, value: number) : Methods => {
-      items = items.filter(item => item[field] as number >= value);
-      return methods;
-    },
-    lt: (field: string, value: number) : Methods => {
-      items = items.filter(item => item[field] as number < value);
-      return methods;
-    },
-    lte: (field: string, value: number) : Methods => {
-      items = items.filter(item => item[field] as number <= value);
-      return methods;
-    },
-    eq: (field: string, value: number) : Methods => {
-      items = items.filter(item => item[field] as ItemValues === value);
-      return methods;
-    },
-    neq: (field: string, value: number) : Methods => {
-      items = items.filter(item => item[field] as ItemValues !== value);
-      return methods;
-    },
-    has: (field: string, value: Values) : Methods => {
-      items = items.filter(item => Array.isArray(item[field]) && (item[field] as PlainArray).includes(value));
-      return methods;
-    },
-    hasAnyOf: (field: string, values: Values[]) : Methods => {
-      items = items.filter(item => Array.isArray(item[field]) && values.some(value => (item[field] as PlainArray).includes(value)));
-      return methods;
-    },
-    hasAllOf: (field: string, values: Values[]) : Methods => {
-      items = items.filter(item => Array.isArray(item[field]) && values.every(value => (item[field] as PlainArray).includes(value)));
-      return methods;
-    },
-    withoutAnyOf: (field: string, values: Values[]) : Methods => {
-      items = items.filter(item => Array.isArray(item[field]) && values.some(value => (item[field] as PlainArray).includes(value) === false));
-      return methods;
-    },
-    withoutAllOf: (field: string, values: Values[]) : Methods => {
-      items = items.filter(item => Array.isArray(item[field]) && values.every(value => (item[field] as PlainArray).includes(value) === false));
-      return methods;
-    },
-    select: (fields: string[]) : Methods => {
-      selectedFields = fields.slice();
-      return methods;
-    },
-    hide: (fields: string[]) : Methods => {
-      hiddenFields = fields.slice();
-      return methods;
-    },
-    results: () : Item[] => {
-      
-      if (sorts.length > 0) {
-        items.sort((a, b) => {
-          for (let i = 0, l = sorts.length; i < l; i += 1) {
-            const [field, fieldDescend] = sorts[i];
-            // If field of both items don't match: EXIT LOOP
-            if (typeof a[field] !== typeof b[field]) {
-              break;
-            // If item fields are't "string" or "number": EXIT LOOP
-            } else if (typeof a[field] !== 'string' || typeof a[field] !== 'number') {
-              break;
-            // If value of both items are equal: SKIP SORT
-            } else if (a[field] === b[field]) {
-              continue;
-            } else if (typeof a[field] === 'string') {
-              return compareString(a[field] as string, b[field] as string, fieldDescend);
-            } else if (typeof a[field] === 'number') {
-              return compareNumber(a[field] as number, b[field] as number, fieldDescend);
-            }
+export class Query <Item> {
+  private items: Item[];
+  private queryOffset: number;
+  private queryLimit: number;
+  private sorts: [string, boolean][];
+  private selectedFields: string[];
+  private hiddenFields: string[];
+  public constructor (table: Table<Item>) {
+    this.items = table.items.slice();
+    this.queryOffset = 0;
+    this.queryLimit = table.items.length;
+    this.sorts = [];
+    this.selectedFields = [];
+    this.hiddenFields = [];
+  }
+  public offset (value: number) : Query <Item> {
+    this.queryOffset = value;
+    return this;
+  }
+  public limit (value: number) : Query <Item> {
+    this.queryLimit = value;
+    return this;
+  }
+  public ascend (field: string) : Query <Item>  {
+    this.sorts.push([field, false]);
+    return this;
+  }
+  public descend (field: string) : Query <Item>  {
+    this.sorts.push([field, true]);
+    return this;
+  }
+  public gt (field: string, value: number) : Query <Item> {
+    // @ts-ignore
+    this.items = this.items.filter(item => item[field] > value);
+    return this;
+  }
+  public gte (field: string, value: number) : Query <Item> {
+    // @ts-ignore
+    this.items = this.items.filter(item => item[field] >= value);
+    return this;
+  }
+  public lt (field: string, value: number) : Query <Item> {
+    // @ts-ignore
+    this.items = this.items.filter(item => item[field] < value);
+    return this;
+  }
+  public lte (field: string, value: number) : Query <Item> {
+    // @ts-ignore
+    this.items = this.items.filter(item => item[field] <= value);
+    return this;
+  }
+  public eq (field: string, value: number) : Query <Item> {
+    // @ts-ignore
+    this.items = this.items.filter(item => item[field] === value);
+    return this;
+  }
+  public neq (field: string, value: number) : Query <Item> {
+    // @ts-ignore
+    this.items = this.items.filter(item => item[field] !== value);
+    return this;
+  }
+  public has (field: string, value: Values) : Query <Item> {
+    // @ts-ignore
+    this.items = this.items.filter(item => Array.isArray(item[field]) && (item[field]).includes(value));
+    return this;
+  }
+  public hasAnyOf (field: string, values: Values[]) : Query <Item> {
+    // @ts-ignore
+    this.items = this.items.filter(item => Array.isArray(item[field]) && values.some(value => (item[field] as PlainArray).includes(value)));
+    return this;
+  }
+  public hasAllOf (field: string, values: Values[]) : Query <Item> {
+    // @ts-ignore
+    this.items = this.items.filter(item => Array.isArray(item[field]) && values.every(value => (item[field] as PlainArray).includes(value)));
+    return this;
+  }
+  public withoutAnyOf (field: string, values: Values[]) : Query <Item> {
+    // @ts-ignore
+    this.items = this.items.filter(item => Array.isArray(item[field]) && values.some(value => (item[field] as PlainArray).includes(value) === false));
+    return this;
+  }
+  public withoutAllOf (field: string, values: Values[]) : Query <Item> {
+    // @ts-ignore
+    this.items = this.items.filter(item => Array.isArray(item[field]) && values.every(value => (item[field] as PlainArray).includes(value) === false));
+    return this;
+  }
+  public select (fields: string[]) : Query <Item> {
+    this.selectedFields = fields.slice();
+    return this;
+  }
+  public hide (fields: string[]) : Query <Item> {
+    this.hiddenFields = fields.slice();
+    return this;
+  }
+  public results () : Item[] {
+    if (this.sorts.length > 0) {
+      this.items.sort((a, b) => {
+        for (let i = 0, l = this.sorts.length; i < l; i += 1) {
+          const [field, fieldDescend] = this.sorts[i];
+          // If field of both items don't match: EXIT LOOP
+          // @ts-ignore
+          if (typeof a[field] !== typeof b[field]) {
+            break;
+          // If item fields are't "string" or "number": EXIT LOOP
+          // @ts-ignore
+          } else if (typeof a[field] !== 'string' || typeof a[field] !== 'number') {
+            break;
+          // If value of both items are equal: SKIP SORT
+          // @ts-ignore
+          } else if (a[field] === b[field]) {
+            continue;
+          // @ts-ignore
+          } else if (typeof a[field] === 'string') {
+            // @ts-ignore
+            return compareString(a[field] as string, b[field] as string, fieldDescend);
+          // @ts-ignore
+          } else if (typeof a[field] === 'number') {
+            // @ts-ignore
+            return compareNumber(a[field] as number, b[field] as number, fieldDescend);
           }
-          return 0;
-        });
-      }
-
-      // Apply our OFFSET & LIMIT filters
-      items = items.slice(offset, offset + limit);
-
-      // Copy our items into a new RESULTS array
-      const results: Item[] = new Array(items.length);
-      for (let i = 0, l = items.length; i < l; i += 1) {
-        results[i] = copyItem(items[i]);
-      }
-
-      // For each item in RESULTS
-      for (let i = 0, l = results.length; i < l; i += 1) {
-        const item = results[i];
-
-        // For each selected fields
-        for (let a = 0, b = selectedFields.length; a < b; a += 1) {
-          const field = selectedFields[i];
-
-          // delete field
-          delete item[field];
         }
+        return 0;
+      });
+    }
 
-        const keys = Object.keys(item);
-        
-        // For each item field
+    // Apply our OFFSET & LIMIT filters
+    this.items = this.items.slice(this.queryOffset, this.queryOffset + this.queryLimit);
+
+    // Copy our items into a new RESULTS array
+    const results: Item[] = new Array(this.items.length);
+    for (let i = 0, l = this.items.length; i < l; i += 1) {
+      results[i] = _.cloneDeep <Item> (this.items[i]);
+    }
+
+    // For each item in RESULTS
+    for (let i = 0, l = results.length; i < l; i += 1) {
+      const item = results[i];
+
+      // For each selected fields
+      for (let a = 0, b = this.selectedFields.length; a < b; a += 1) {
+        const field = this.selectedFields[i];
+
+        // delete field
+        // @ts-ignore
+        delete item[field];
+      }
+
+      const keys = Object.keys(item);
+      
+      if (this.selectedFields.length > 1) {
+          // For each item field
         for (let a = 0, b = keys.length; a < b; a += 1) {
           const field = keys[a];
           // If selected field includes field, DELETE
-          if (selectedFields.includes(field) === false) {
+          if (this.selectedFields.includes(field) === false) {
+            // @ts-ignore
             delete item[field];
           }
         }
-
-        // For each hidden field, DELETE
-        for (let a = 0, b = hiddenFields.length; a < b; a += 1) {
-          const field = hiddenFields[a];
-          delete item[field];
-        }
-        item[ItemId] = items[i][ItemId];
-        item[ItemTableLabel] = items[i][ItemTableLabel];
       }
-      return results;
+
+      // For each hidden field, DELETE
+      for (let a = 0, b = this.hiddenFields.length; a < b; a += 1) {
+        const field = this.hiddenFields[a];
+        // @ts-ignore
+        delete item[field];
+      }
+      // @ts-ignore
+      item[ItemId] = this.items[i][ItemId];
+      // @ts-ignore
+      item[ItemTableLabel] = this.items[i][ItemTableLabel];
     }
-  };
-  return methods;
-};
+
+    return results;
+  }
+}
+
+class Table <Item> {
+  private label: string;
+  private database: Database;
+  public ids: string[];
+  public items: Item[];
+  public index: Map<string, Item>;
+  public constructor (label: string, database: Database) {
+    this.label = label;
+    this.database = database;
+    this.ids = [];
+    this.items = [];
+    this.index = new Map();
+  }
+  public insertItem(id: string, data : Item) : Item {
+    if (this.index.has(id)) {
+      throw Error('Invalid "Item", "id" already exists in table');
+    }
+    const item = _.cloneDeep <Item> (data);
+    // @ts-ignore
+    item[ItemId] = id;
+    // @ts-ignore
+    item[ItemTableLabel] = this.label;
+    this.ids.push(id);
+    this.items.push(item);
+    this.index.set(id, item);
+    this.database.save();
+    const copy = _.cloneDeep <Item> (item);
+    // @ts-ignore
+    copy[ItemId] = id;
+    // @ts-ignore
+    copy[ItemTableLabel] = this.label;
+    return copy;
+  }
+  public clearTable() : void {
+    this.ids = [];
+    this.items = [];
+    this.index.clear();
+    this.database.save();
+  }
+  public removeTable() : void {
+    this.database.index.delete(this.label);
+    this.database.save();
+    delete this.label;
+    delete this.ids;
+    delete this.items;
+    delete this.index;
+  }
+  public updateItem (modified: Item) : void {
+    // @ts-ignore
+    const id = modified[ItemId];
+    if (this.index.has(id) === false) {
+      throw Error('Invalid "Item", "id" not found in table');
+    }
+    const item: Item = _.cloneDeep <Item> (modified);
+    // @ts-ignore
+    item[ItemId] = id;
+    // @ts-ignore
+    item[ItemTableLabel] = this.label;
+    this.items[this.ids.indexOf(id)] = item;
+    this.index.set(id, item);
+    this.database.save();
+  }
+  public updateItemById (id: string, data: Item) : Item {
+    if (this.index.has(id) === false) {
+      throw Error('Invalid "Item", "id" not found in table');
+    }
+    const item = _.cloneDeep <Item> (data);
+    // @ts-ignore
+    item[ItemId] = id;
+    // @ts-ignore
+    item[ItemTableLabel] = this.label;
+    this.items[this.ids.indexOf(id)] = item;
+    this.index.set(id, item);
+    this.database.save();
+    const copy = _.cloneDeep <Item> (item);
+    // @ts-ignore
+    copy[ItemId] = id;
+    // @ts-ignore
+    copy[ItemTableLabel] = this.label;
+    return copy;
+  }
+  public mergeItemById (id: string, data: Item) : Item {
+    if (this.index.has(id) === false) {
+      throw Error('Invalid "Item", "id" not found in table');
+    }
+    const existing = this.index.get(id);
+    const item = {
+      ...existing,
+      ..._.cloneDeep <Item>(data)
+    };
+    // @ts-ignore
+    item[ItemId] = id;
+    // @ts-ignore
+    item[ItemTableLabel] = this.label;
+    this.database.save();
+    const copy = _.cloneDeep <Item> (item);
+    // @ts-ignore
+    copy[ItemId] = id;
+    // @ts-ignore
+    copy[ItemTableLabel] = this.label;
+    return copy;
+  }
+  public removeItem (item: Item) : void {
+    // @ts-ignore
+    const id = item[ItemId];
+    if (this.index.has(id) === false) {
+      throw Error('Invalid "Item", "id" not found in table');
+    }
+    const index = this.ids.indexOf(id);
+    this.ids.splice(index, 1);
+    this.items.splice(index, 1);
+    this.index.delete(id);
+    this.database.save();
+    // @ts-ignore
+    delete item[ItemId];
+    // @ts-ignore
+    delete item[ItemTableLabel];
+  }
+  public removeItemById (id: string) : void {
+    if (this.index.has(id) === false) {
+      throw Error('Invalid "Item", "id" not found in table');
+    }
+    const index = this.ids.indexOf(id);
+    this.ids.splice(index, 1);
+    this.items.splice(index, 1);
+    this.index.delete(id);
+    this.database.save();
+  }
+  public getItemId (item: Item) : string {
+    // @ts-ignore
+    const id = item[ItemId];
+    if (this.index.has(id) === false) {
+      throw Error('Invalid "Item", "id" not found in table');
+    }
+    return id;
+  }
+  public getItemById (id: string) : Item {
+    if (this.index.has(id) === false) {
+      throw Error('Invalid "Item", "id" not found in table');
+    }
+    const item = this.index.get(id);
+    const copy = _.cloneDeep <Item> (item as Item);
+    // @ts-ignore
+    copy[ItemId] = id;
+    // @ts-ignore
+    copy[ItemTableLabel] = this.label;
+    return copy;
+  }
+  public createQuery () : Query <Item> {
+    return new Query(this);
+  }
+}
+
+// Database
+export class Database {
+  private filename: string;
+  private directory: string;
+  private main: string;
+  private temp: string;
+  private old: string;
+  public index: Map<string, Table<unknown>>; // eslint-disable-line
+  public constructor (filename: string, directory: string) {
+    this.filename = filename;
+    this.directory = directory;
+    this.main = directory.concat('/', filename, '.rrdb');
+    this.temp = directory.concat('/', filename, '.rrdb.temp');
+    this.old = directory.concat('/', filename, '.rrdb.old');
+    this.index = new Map();
+    if (existsSync(this.main)) {
+      this.load();
+    } else {
+      this.save();
+    }
+  }
+  private load () : void {
+    this.index.clear();
+    const dbDataString: string = readFileSync(this.main, 'utf8');
+    const data = JSON.parse(dbDataString);
+    for (let i = 0, l = data.length; i < l; i += 1) {
+      const [label, ids, items] = data[i];
+      const table = new Table <unknown> (label, this);
+      this.index.set(label, table);
+      for (let a = 0, b = items.length; a < b; a += 1) {
+        table.insertItem(ids[a], items[a]);
+      }
+    }
+  }
+  public save () : void {
+    const tables = Array.from(this.index.entries());
+    const data = new Array(tables.length);
+    for (let i = 0, l = tables.length; i < l; i += 1) {
+      const [label, table] = tables[i];
+      const ids = table.ids;
+      const items = table.items;
+      data[i] = [label, ids, items];
+    }
+    const dataString = JSON.stringify(data, null, 2);
+    if (existsSync(this.directory) === false) {
+      mkdirSync(this.directory, { recursive: true });
+    }
+    writeFileSync(this.temp, dataString, 'utf8');
+    if (existsSync(this.main) === true) {
+      renameSync(this.main, this.old);
+    }
+    renameSync(this.temp, this.main);
+  }
+  public useTable <Item> (label: string) : Table<Item> {
+    if (this.index.has(label)) {
+      return this.index.get(label) as Table<Item>;
+    }
+    const table = new Table <Item> (label, this);
+    this.index.set(label, table);
+    return table;
+  }
+}
+
+

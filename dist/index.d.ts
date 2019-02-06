@@ -1,32 +1,61 @@
-export declare type PlainArray = (string | number | boolean | undefined | null)[];
-export declare type PlainObject = Record<string, (string | number | boolean | undefined | null)>;
-export declare type Values = string | number | boolean | undefined | null | PlainArray | PlainObject;
-export declare type ItemId = string | number;
-export declare type Item = Record<string, Values>;
-interface Table {
-    Label: string;
-    Ids: ItemId[];
-    Items: Item[];
-    Index: Map<ItemId, Item>;
+declare type Values = string | number | boolean | null | undefined;
+export declare class Query<Item> {
+    private items;
+    private queryOffset;
+    private queryLimit;
+    private sorts;
+    private selectedFields;
+    private hiddenFields;
+    constructor(table: Table<Item>);
+    offset(value: number): Query<Item>;
+    limit(value: number): Query<Item>;
+    ascend(field: string): Query<Item>;
+    descend(field: string): Query<Item>;
+    gt(field: string, value: number): Query<Item>;
+    gte(field: string, value: number): Query<Item>;
+    lt(field: string, value: number): Query<Item>;
+    lte(field: string, value: number): Query<Item>;
+    eq(field: string, value: number): Query<Item>;
+    neq(field: string, value: number): Query<Item>;
+    has(field: string, value: Values): Query<Item>;
+    hasAnyOf(field: string, values: Values[]): Query<Item>;
+    hasAllOf(field: string, values: Values[]): Query<Item>;
+    withoutAnyOf(field: string, values: Values[]): Query<Item>;
+    withoutAllOf(field: string, values: Values[]): Query<Item>;
+    select(fields: string[]): Query<Item>;
+    hide(fields: string[]): Query<Item>;
+    results(): Item[];
 }
-interface GenericTable<GenericItem extends Item> {
-    Label: string;
-    Ids: ItemId[];
-    Items: GenericItem[];
-    Index: Map<ItemId, GenericItem>;
+declare class Table<Item> {
+    private label;
+    private database;
+    ids: string[];
+    items: Item[];
+    index: Map<string, Item>;
+    constructor(label: string, database: Database);
+    insertItem(id: string, data: Item): Item;
+    clearTable(): void;
+    removeTable(): void;
+    updateItem(modified: Item): void;
+    updateItemById(id: string, data: Item): Item;
+    mergeItemById(id: string, data: Item): Item;
+    removeItem(item: Item): void;
+    removeItemById(id: string): void;
+    getItemId(item: Item): string;
+    getItemById(id: string): Item;
+    createQuery(): Query<Item>;
 }
-export declare const useDatabase: (label: string, directory: string) => void;
-export declare const useTable: (label: string) => Table;
-export declare const useGenericTable: <T extends Record<string, Values>>(label: string) => GenericTable<T>;
-export declare const clearTable: (table: Table) => void;
-export declare const removeTable: (table: Table) => void;
-export declare const insertItem: (table: Table, data: Record<string, Values>, id: string) => Record<string, Values>;
-export declare const updateItem: (modifiedItem: Record<string, Values>) => void;
-export declare const updateItemByID: (table: Table, id: string | number, data: Record<string, Values>) => Record<string, Values>;
-export declare const mergeItemByID: (table: Table, id: string | number, data: Record<string, Values>) => Record<string, Values>;
-export declare const removeItem: (item: Record<string, Values>) => void;
-export declare const removeItemByID: (table: Table, id: string | number) => void;
-export declare const getItemID: (item: Record<string, Values>) => string | number;
-export declare const getItemByID: (table: Table, id: string | number) => Record<string, Values>;
+export declare class Database {
+    private filename;
+    private directory;
+    private main;
+    private temp;
+    private old;
+    index: Map<string, Table<unknown>>;
+    constructor(filename: string, directory: string);
+    private load;
+    save(): void;
+    useTable<Item>(label: string): Table<Item>;
+}
 export {};
 //# sourceMappingURL=index.d.ts.map
