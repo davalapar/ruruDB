@@ -12,8 +12,7 @@ import _ from 'lodash';
 export type Values = string|number|boolean|null|undefined;
 
 // Symbols
-const ItemId = Symbol('Item.Id');
-const ItemTableLabel = Symbol('Item.TableLabel');
+const Tracker = Symbol('Item.Id');
 
 // Functions
 const compareString = (
@@ -195,17 +194,122 @@ export class Query <Item> {
         delete item[field];
       }
       // @ts-ignore
-      item[ItemId] = this.items[i][ItemId];
-      // @ts-ignore
-      item[ItemTableLabel] = this.items[i][ItemTableLabel];
+      item[Tracker] = this.items[i][Tracker];
     }
 
     return results;
   }
 }
 
+/**
+ * Transactions:
+ * - May involve multiple items
+ * - May involve multiple tables
+ * - Changes are committed at once
+ * 
+ * At Redis:
+ * - Items snapshots are captured
+ * - Changes are recorded
+ * - If items were modified in database, aborts
+ * - Developer can also abort
+ * - If items were not modified, commits
+ */
+
+ /**
+  * @todo check if items still exist
+  * @todo check if items were modified
+  */
+export class Transaction <Items> {
+  private items: Items[];
+  private removed: [string, string][];
+  private database: Database;
+  public constructor (database: Database) {
+    this.database = database;
+    this.items = [];
+    this.removed = [];
+  }
+  public fetchItem (table: Table<Items>, id: string) : Items {
+    if (table.index.has(id) === false) {
+      throw Error('Transaction @ createItem : Invalid "id", not found in table');
+    }
+    const item = table.index.get(id) as Items;
+    const copy = _.cloneDeep <Items> (item);
+    // @ts-ignore
+    copy[Tracker] = item[Tracker];
+    this.items.push(copy);
+    return copy;
+  }
+  public createItem (table: Table<Items>, id: string, item: Items) : Items {
+    if (table.index.has(id)) {
+      throw Error('Transaction @ createItem : Invalid "id", already exists in table');
+    }
+    const copy = _.cloneDeep <Items> (item);
+    // @ts-ignore
+    copy[Tracker] = item[Tracker];
+    this.items.push(copy);
+    return copy;
+  }
+  public removeItem (item: Items) : void {
+    if (this.items.includes(item) === false) {
+      throw Error('Transaction @ removeItem : Invalid "item", not involved in Transaction');
+    }
+    this.items.splice(this.items.indexOf(item), 1);
+    // @ts-ignore
+    const [id, tableLabel] = item[Tracker];
+    if (this.removed.some(entry => entry[1] === id)) {
+      throw Error('Transaction @ removeItem : Invalid "id", item already marked as removed');
+    }
+    this.removed.push([tableLabel, id]);
+  }
+  public removeItemById (table: Table<Items>, id: string) : void {
+    if (table.index.has(id) === false) {
+      throw Error('Transaction @ removeItemById : Invalid "id", not found in table');
+    }
+    if (this.removed.some(entry => entry[1] === id)) {
+      throw Error('Transaction @ removeItemById : Invalid "id", item already marked as removed');
+    }
+    this.removed.push([table.label, id]);
+  }
+  public commit () : void {
+    for (let i = 0, l = this.items.length; i < l; i += 1) {
+      const item = this.items[i];
+      // @ts-ignore
+      const [id, tableLabel]: [string, string] = item[Tracker];
+      const table = this.database.index.get(tableLabel);
+      if (table === undefined) {
+        throw Error('Transaction @ commit : Table not found in Database index');
+      }
+      const entry = _.cloneDeep(item);
+      // @ts-ignore
+      entry[Tracker] = id;
+      table.items[table.ids.indexOf(id)] = entry;
+      table.index.set(id, entry);
+    }
+    for (let i = 0, l = this.removed.length; i < l; i += 1) {
+      const [tableLabel, id] = this.removed[i];
+      const table = this.database.index.get(tableLabel);
+      if (table === undefined) {
+        throw Error('Transaction @ commit : Table not found in Database index');
+      }
+      const index = table.ids.indexOf(id);
+      table.ids.splice(index, 1);
+      table.items.splice(index, 1);
+      table.index.delete(id);
+    }
+    this.database.save();
+  }
+}
+
+export const randomItemId = (table: Table<unknown>) : string => {
+  let id = String(Math.random());
+  while (table.index.has(id)) {
+    id = String(Math.random());
+  }
+  return id;
+};
+
 class Table <Item> {
-  private label: string;
+  public label: string;
   private database: Database;
   public ids: string[];
   public items: Item[];
@@ -223,18 +327,14 @@ class Table <Item> {
     }
     const item = _.cloneDeep <Item> (data);
     // @ts-ignore
-    item[ItemId] = id;
-    // @ts-ignore
-    item[ItemTableLabel] = this.label;
+    item[Tracker] = id;
     this.ids.push(id);
     this.items.push(item);
     this.index.set(id, item);
     this.database.save();
     const copy = _.cloneDeep <Item> (item);
     // @ts-ignore
-    copy[ItemId] = id;
-    // @ts-ignore
-    copy[ItemTableLabel] = this.label;
+    copy[Tracker] = id;
     return copy;
   }
   public clearTable() : void {
@@ -253,15 +353,13 @@ class Table <Item> {
   }
   public updateItem (modified: Item) : void {
     // @ts-ignore
-    const id = modified[ItemId];
+    const id: string = modified[Tracker];
     if (this.index.has(id) === false) {
       throw Error('Invalid "Item", "id" not found in table');
     }
     const item: Item = _.cloneDeep <Item> (modified);
     // @ts-ignore
-    item[ItemId] = id;
-    // @ts-ignore
-    item[ItemTableLabel] = this.label;
+    item[Tracker] = id;
     this.items[this.ids.indexOf(id)] = item;
     this.index.set(id, item);
     this.database.save();
@@ -272,17 +370,13 @@ class Table <Item> {
     }
     const item = _.cloneDeep <Item> (data);
     // @ts-ignore
-    item[ItemId] = id;
-    // @ts-ignore
-    item[ItemTableLabel] = this.label;
+    item[Tracker] = id;
     this.items[this.ids.indexOf(id)] = item;
     this.index.set(id, item);
     this.database.save();
     const copy = _.cloneDeep <Item> (item);
     // @ts-ignore
-    copy[ItemId] = id;
-    // @ts-ignore
-    copy[ItemTableLabel] = this.label;
+    copy[Tracker] = id;
     return copy;
   }
   public mergeItemById (id: string, data: Item) : Item {
@@ -295,20 +389,16 @@ class Table <Item> {
       ..._.cloneDeep <Item>(data)
     };
     // @ts-ignore
-    item[ItemId] = id;
-    // @ts-ignore
-    item[ItemTableLabel] = this.label;
+    item[Tracker] = id;
     this.database.save();
     const copy = _.cloneDeep <Item> (item);
     // @ts-ignore
-    copy[ItemId] = id;
-    // @ts-ignore
-    copy[ItemTableLabel] = this.label;
+    copy[Tracker] = id;
     return copy;
   }
   public removeItem (item: Item) : void {
     // @ts-ignore
-    const id = item[ItemId];
+    const id: string = item[Tracker];
     if (this.index.has(id) === false) {
       throw Error('Invalid "Item", "id" not found in table');
     }
@@ -318,9 +408,7 @@ class Table <Item> {
     this.index.delete(id);
     this.database.save();
     // @ts-ignore
-    delete item[ItemId];
-    // @ts-ignore
-    delete item[ItemTableLabel];
+    delete item[Tracker];
   }
   public removeItemById (id: string) : void {
     if (this.index.has(id) === false) {
@@ -334,7 +422,7 @@ class Table <Item> {
   }
   public getItemId (item: Item) : string {
     // @ts-ignore
-    const id = item[ItemId];
+    const id: string = item[Tracker];
     if (this.index.has(id) === false) {
       throw Error('Invalid "Item", "id" not found in table');
     }
@@ -347,9 +435,7 @@ class Table <Item> {
     const item = this.index.get(id);
     const copy = _.cloneDeep <Item> (item as Item);
     // @ts-ignore
-    copy[ItemId] = id;
-    // @ts-ignore
-    copy[ItemTableLabel] = this.label;
+    copy[Tracker] = id;
     return copy;
   }
   public createQuery () : Query <Item> {
