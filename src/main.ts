@@ -7,7 +7,8 @@ import {
   readFileSync,
 } from 'fs';
 
-import _ from 'lodash';
+import cloneDeep from 'lodash/cloneDeep';
+import uuidv4 from 'uuid/v4';
 
 export type Values = string|number|boolean|null|undefined;
 
@@ -157,7 +158,7 @@ export class Query <Item> {
     // Copy our items into a new RESULTS array
     const results: Item[] = new Array(this.items.length);
     for (let i = 0, l = this.items.length; i < l; i += 1) {
-      results[i] = _.cloneDeep <Item> (this.items[i]);
+      results[i] = cloneDeep <Item> (this.items[i]);
     }
 
     // For each item in RESULTS
@@ -233,7 +234,7 @@ export class Transaction {
       throw Error('Transaction @ createItem : Invalid "id", not found in table');
     }
     const item = table.index.get(id) as Item;
-    const copy = _.cloneDeep <Item> (item);
+    const copy = cloneDeep <Item> (item);
     // @ts-ignore
     copy[Tracker] = [id, table.label];
     this.items.push(copy);
@@ -243,7 +244,7 @@ export class Transaction {
     if (table.index.has(id)) {
       throw Error('Transaction @ createItem : Invalid "id", already exists in table');
     }
-    const copy = _.cloneDeep <Item> (item);
+    const copy = cloneDeep <Item> (item);
     // @ts-ignore
     copy[Tracker] = [id, table.label];
     this.items.push(copy);
@@ -279,7 +280,7 @@ export class Transaction {
       if (table === undefined) {
         throw Error('Transaction @ commit : Table not found in Database index');
       }
-      const entry = _.cloneDeep(item);
+      const entry = cloneDeep(item);
       // @ts-ignore
       entry[Tracker] = id;
       const index = table.ids.indexOf(id);
@@ -307,9 +308,9 @@ export class Transaction {
 }
 
 export const randomItemId = (table: Table<unknown>) : string => {
-  let id = String(Math.random());
+  let id = uuidv4();
   while (table.index.has(id)) {
-    id = String(Math.random());
+    id = uuidv4();
   }
   return id;
 };
@@ -331,14 +332,14 @@ class Table <Item> {
     if (this.index.has(id)) {
       throw Error('Invalid "Item", "id" already exists in table');
     }
-    const item = _.cloneDeep <Item> (data);
+    const item = cloneDeep <Item> (data);
     // @ts-ignore
     item[Tracker] = id;
     this.ids.push(id);
     this.items.push(item);
     this.index.set(id, item);
     this.database.save();
-    const copy = _.cloneDeep <Item> (item);
+    const copy = cloneDeep <Item> (item);
     // @ts-ignore
     copy[Tracker] = id;
     return copy;
@@ -363,7 +364,7 @@ class Table <Item> {
     if (this.index.has(id) === false) {
       throw Error('Invalid "Item", "id" not found in table');
     }
-    const item: Item = _.cloneDeep <Item> (modified);
+    const item: Item = cloneDeep <Item> (modified);
     // @ts-ignore
     item[Tracker] = id;
     this.items[this.ids.indexOf(id)] = item;
@@ -374,13 +375,13 @@ class Table <Item> {
     if (this.index.has(id) === false) {
       throw Error('Invalid "Item", "id" not found in table');
     }
-    const item = _.cloneDeep <Item> (data);
+    const item = cloneDeep <Item> (data);
     // @ts-ignore
     item[Tracker] = id;
     this.items[this.ids.indexOf(id)] = item;
     this.index.set(id, item);
     this.database.save();
-    const copy = _.cloneDeep <Item> (item);
+    const copy = cloneDeep <Item> (item);
     // @ts-ignore
     copy[Tracker] = id;
     return copy;
@@ -392,12 +393,12 @@ class Table <Item> {
     const existing = this.index.get(id);
     const item = {
       ...existing,
-      ..._.cloneDeep <Item>(data)
+      ...cloneDeep <Item>(data)
     };
     // @ts-ignore
     item[Tracker] = id;
     this.database.save();
-    const copy = _.cloneDeep <Item> (item);
+    const copy = cloneDeep <Item> (item);
     // @ts-ignore
     copy[Tracker] = id;
     return copy;
@@ -439,7 +440,7 @@ class Table <Item> {
       throw Error('Invalid "Item", "id" not found in table');
     }
     const item = this.index.get(id);
-    const copy = _.cloneDeep <Item> (item as Item);
+    const copy = cloneDeep <Item> (item as Item);
     // @ts-ignore
     copy[Tracker] = id;
     return copy;
