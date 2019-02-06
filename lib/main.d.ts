@@ -66,9 +66,9 @@ export declare class Database {
     private snapshotInterval;
     private lastSnapshotTimestamp;
     index: Map<string, Table<unknown>>;
-    constructor(filename: string, directory: string, snapshotInterval: string);
+    constructor(filename: string, directory: string, snapshotInterval?: string);
     private load;
-    save(forceSnapshot?: boolean): void;
+    save(): void;
     useTable<Item>(label: string): Table<Item>;
 }
 export {};
