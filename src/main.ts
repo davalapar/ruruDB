@@ -282,7 +282,13 @@ export class Transaction {
       const entry = _.cloneDeep(item);
       // @ts-ignore
       entry[Tracker] = id;
-      table.items[table.ids.indexOf(id)] = entry;
+      const index = table.ids.indexOf(id);
+      if (index >= 0) {
+        table.items[index] = entry;
+      } else {
+        table.ids.push(id);
+        table.items.push(entry);
+      }
       table.index.set(id, entry);
     }
     for (let i = 0, l = this.removed.length; i < l; i += 1) {

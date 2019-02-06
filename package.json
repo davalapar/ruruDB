@@ -1,8 +1,9 @@
 {
-  "name": "ruruDB",
+  "name": "rurudb",
   "version": "1.0.0",
   "description": "db",
-  "main": "index.js",
+  "main": "./lib/main.js",
+  "types": "./lib/main.d.ts",
   "author": "davalapar <davalapar@gmail.com>",
   "license": "MIT",
   "dependencies": {

@@ -70,4 +70,4 @@ export declare class Database {
     useTable<Item>(label: string): Table<Item>;
 }
 export {};
-//# sourceMappingURL=index.d.ts.map
+//# sourceMappingURL=main.d.ts.map
