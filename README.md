@@ -1,66 +1,41 @@
 # ruruDB
 
-document database for gangstas
+*Document database for gangstas*
 
-RuruDB is a document database which aims to provide the most basic features, useful for prototyping & migration.
+## Overview
 
-## Perks
+RuruDB is a document database which provides basic features for prototyping & migration purposes.
 
-- Written in TypeScript
-- Balance between type-safety, file-safety and performance
-- Atomic database saving
+## Pros
+
+- Written in `TypeScript` & has tests with `Jest`
+- Atomic database file saving approach
   - Data is first written to `*.rrdb.temp`
   - We then rename `*.rrdb` to `*.rrdb.old`
   - Finally, we rename `*.rrdb.temp` to `*.rrdb`
-- Accepts custom Item types
-- Tested with Jest
+- Has built-in `Query` methods
+- Supports `string`, `number`, `boolean`, `null` & `undefined` values
+- Accepts custom `Item` types
 
 ```ts
 interface User {
   name: string;
   age: number;
 }
-const usersTable = useTable<User> ('users');
+const users = db.useTable <User> ('users');
 ```
 
-| Code | Tests | Functions | Returns | Description |
-|:-:|:-:|:--|:-|:--|
-| OK | - | useDatabase (filename, directory) | null | Select / create / load a database |
-| OK | - | useTable (label, database) | Table | Select / create a table |
-| OK | - | clearTable (table) | void | Clear a table |
-| OK | - | removeTable (table) | void | Remove  a table |
-| OK | - | insertItem (table, data, id) | Item | Inserts an item into a table |
-| OK | - | updateItem (item) | void | Update / overwrite an item |
-| OK | - | updateItemByID (table, id, data) | Item | Update / overwrite an item, by ID |
-| OK | - | mergeItemByID (table, id, data) | Item | Merges supplied data to an item, by ID |
-| OK | - | removeItem (item) | void | Remove an item |
-| OK | - | removeItemByID (table, id) | void | Remove an item, by ID |
-| OK | - | getItemID (item) | ItemId | Return an item's ID |
-| OK | - | getItemByID (table, id) | Item | Return an item, from ID |
-| OK | - | createQuery (table) | Query Methods | Creates a query against a table |
-| OK | - | ~ offset (value) | Query Methods | Sets offset of query results |
-| OK | - | ~ limit (value) | Query Methods | Sets limit of query results |
-| OK | - | ~ ascend (field) | Query Methods | Ascend a string / number field |
-| OK | - | ~ descend (field) | Query Methods | Descend a string / number field |
-| OK | - | ~ gt (field, value) | Query Methods | Greater than |
-| OK | - | ~ gte (field, value) | Query Methods | Greater than or equal |
-| OK | - | ~ lt (field, value) | Query Methods | Less than |
-| OK | - | ~ lte (field, value) | Query Methods | Less than or equal |
-| OK | - | ~ eq (field, value) | Query Methods | Equal |
-| OK | - | ~ neq (field, value) | Query Methods | Not equal |
-| OK | - | ~ has (field, value) | Query Methods | Has value |
-| OK | - | ~ hasAnyOf (field, values) | Query Methods | Has any of values |
-| OK | - | ~ hasAllOf (field, values) | Query Methods | Has all of values |
-| OK | - | ~ withoutAnyOf (field, values) | Query Methods | Has none of any values |
-| OK | - | ~ withoutAllOf (field, values) | Query Methods | Has none of all values |
-| OK | - | ~ select (...fields) | Query Methods | Select fields |
-| OK | - | ~ hide (...fields) | Query Methods | Hide fields |
-| - | - | ~ sortBy (sortFn) | Query Methods | Sort by function |
-| - | - | ~ extendWith (symbol, valueFn) | Query Methods | Attach a symbol, with value |
-| - | - | ~ filterBy (filterFn) | Query Methods | Filter by function |
-| - | - | ~ groupBy (groupFn) | Query Methods | Group by function |
-| - | - | ~ partitionBy (partitionFn) | Query Methods | Partition by function |
-| OK | - | ~ results () | Items[] | Return query results |
+## Cons
+
+- Runs in main thread / process
+- Currently uses synchronous fs methods (blocks main-thread)
+- Currently saves using `JSON.stringify` (large file size)
+
+## Planned Future Improvements
+
+- Run in separate thread / process
+- Use asynchronous fs methods (non-blocking)
+- Support saving using `MessagePack` (smaller file size)
 
 ## Database Term Equivalents
 
@@ -72,38 +47,78 @@ const usersTable = useTable<User> ('users');
 | **Item Field** | Entity Property | Document Property | Row Column |
 | **Query** |Query | Query | Query |
 
-## Key & Value support for Items
+## Code & Test Coverage
 
-#### Keys
+| Code | Tests | Database Functions | Returns | Description |
+|:-:|:-:|:--|:-|:--|
+| `OK` | - | `new Database(filename, directory)` | `Database()` | Selects / creates / loads a database file |
 
-| Type | Supported? |
-|:--|:-:|
-| String | Yes |
-| Symbols | - |
+| Code | Tests | Table Functions | Returns | Description |
+|:-:|:-:|:--|:-|:--|
+| `OK` | - | `Database().useTable <Item> (label)` | `Table()` | Selects / creates a table |
+| `OK` | - | `Table().clearTable()` | `void` | Clear a table |
+| `OK` | - | `Table().removeTable()` | `void` | Remove  a table |
+| `OK` | - | `Table().insertItem(data, id)` | `Item` | Inserts an item into a table |
+| `OK` | - | `Table().updateItem(item)` | `void` | Update / overwrite an item |
+| `OK` | - | `Table().updateItemByID(id, data)` | `Item` | Update / overwrite an item, by ID |
+| `OK` | - | `Table().mergeItemByID(id, data)` | `Item` | Merges supplied data to an item, by ID |
+| `OK` | - | `Table().removeItem(item)` | `void` | Remove an item |
+| `OK` | - | `Table().removeItemByID(id)` | `void` | Remove an item, by ID |
+| `OK` | - | `Table().getItemID(item)` | `string` | Return an item's ID |
+| `OK` | - | `Table().getItemByID(, id)` | `Item` | Return an item, from ID |
 
-#### Values
+| Code | Tests | Query Functions | Returns | Description |
+|:-:|:-:|:--|:-|:--|
+| `OK` | - | `Table().createQuery()` | `Query()` | Creates a query against a table |
+| `OK` | - | `new Query(table)` | `Query()` | Creates a query against a table |
+| `OK` | - | `Query().offset(value)` | `Query()` | Sets offset of results to return |
+| `OK` | - | `Query().limit(value)` | `Query()` | Sets limit of results to return |
+| `OK` | - | `Query().ascend(field)` | `Query()` | Ascend results by a string / number field |
+| `OK` | - | `Query().descend(field)` | `Query()` | Descend results by a string / number field |
+| `OK` | - | `Query().gt(field, value)` | `Query()` | If field is greater than to value |
+| `OK` | - | `Query().gte(field, value)` | `Query()` | If field is greater than or equal to value |
+| `OK` | - | `Query().lt(field, value)` | `Query()` | If field is less than to value |
+| `OK` | - | `Query().lte(field, value)` | `Query()` | If field is less than or equal to value |
+| `OK` | - | `Query().eq(field, value)` | `Query()` | If field is equal to value |
+| `OK` | - | `Query().neq(field, value)` | `Query()` | If field is not equal to value |
+| `OK` | - | `Query().has(field, value)` | `Query()` | If array field has specified value |
+| `OK` | - | `Query().hasAnyOf(field, values)` | `Query()` | If array field has any of specified values |
+| `OK` | - | `Query().hasAllOf(field, values)` | `Query()` | If field has all of specified values |
+| `OK` | - | `Query().hasNoneOfAny(field, values)` | `Query()` | If array field has none of any specified values |
+| `OK` | - | `Query().hasNoneOfAll(field, values)` | `Query()` | If array field has none of all specified values |
+| `OK` | - | `Query().select(fields)` | `Query()` | Select fields |
+| `OK` | - | `Query().hide(fields)` | `Query()` | Hide fields |
+| - | - | `Query().sortBy(sortFn)` | `Query()` | Sort by function |
+| - | - | `Query().filterBy(filterFn)` | `Query()` | Filter by function |
+| - | - | `Query().groupBy(groupFn)` | `Query()` | Group by function |
+| - | - | `Query().partitionBy(partitionFn)` | `Query()` | Partition by function |
+| `OK` | - | `Query().results()` | `Items[]` | Return query results |
 
-| Type | Supported? |
-|:--|:-:|
-| Boolean | Yes |
-| String | Yes |
-| Number | Yes |
-| Undefined | Yes |
-| Null | Yes |
-| Plain Objects | Yes |
-| Plain Arrays | Yes |
-| NaN | - |
-| +Infinity | - |
-| -Infinity | - |
-| Functions | - |
-| Symbols | - |
-| Class Objects | - |
-| Class Instance Objects | - |
-| Typedarrays | - |
-| Maps | - |
-| Sets | - |
-| WeakMaps | - |
-| WeakSets | - |
+## Item Interface Support
+
+- Supported Keys
+  - string
+- Supported Values
+  - Boolean
+  - String
+  - Number
+  - Undefined
+  - Null
+  - Objects
+  - Arrays
+- Non-supported Values
+  - Symbols `(Impossible, values are runtime unique)`
+  - Class Objects `(Impossible, loses methods etc)`
+  - Class Instance Objects `(Impossible, loses methods etc)`
+  - Functions `(Impossible, loses context)`
+  - NaN `(No JSON.stringify support)`
+  - +Infinity `(No JSON.stringify support)`
+  - -Infinity `(No JSON.stringify support)`
+  - Typedarrays `(No JSON.stringify support)`
+  - Maps `(No JSON.stringify support)`
+  - Sets `(No JSON.stringify support)`
+  - WeakMaps `(No JSON.stringify support)`
+  - WeakSets `(No JSON.stringify support)`
 
 ## Google Datastore Wrapper
 

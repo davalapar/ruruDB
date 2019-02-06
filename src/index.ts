@@ -9,8 +9,7 @@ import {
 
 import _ from 'lodash';
 
-type Methods = Record<string, Function>;
-type Values = string|number|boolean|null|undefined
+export type Values = string|number|boolean|null|undefined;
 
 // Symbols
 const ItemId = Symbol('Item.Id');
@@ -104,12 +103,12 @@ export class Query <Item> {
     this.items = this.items.filter(item => Array.isArray(item[field]) && values.every(value => (item[field] as PlainArray).includes(value)));
     return this;
   }
-  public withoutAnyOf (field: string, values: Values[]) : Query <Item> {
+  public hasNoneOfAny (field: string, values: Values[]) : Query <Item> {
     // @ts-ignore
     this.items = this.items.filter(item => Array.isArray(item[field]) && values.some(value => (item[field] as PlainArray).includes(value) === false));
     return this;
   }
-  public withoutAllOf (field: string, values: Values[]) : Query <Item> {
+  public hasNoneOfAll (field: string, values: Values[]) : Query <Item> {
     // @ts-ignore
     this.items = this.items.filter(item => Array.isArray(item[field]) && values.every(value => (item[field] as PlainArray).includes(value) === false));
     return this;
