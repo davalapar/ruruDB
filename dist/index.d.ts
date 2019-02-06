@@ -1,4 +1,4 @@
-declare type Values = string | number | boolean | null | undefined;
+export declare type Values = string | number | boolean | null | undefined;
 export declare class Query<Item> {
     private items;
     private queryOffset;
@@ -20,14 +20,26 @@ export declare class Query<Item> {
     has(field: string, value: Values): Query<Item>;
     hasAnyOf(field: string, values: Values[]): Query<Item>;
     hasAllOf(field: string, values: Values[]): Query<Item>;
-    withoutAnyOf(field: string, values: Values[]): Query<Item>;
-    withoutAllOf(field: string, values: Values[]): Query<Item>;
+    hasNoneOfAny(field: string, values: Values[]): Query<Item>;
+    hasNoneOfAll(field: string, values: Values[]): Query<Item>;
     select(fields: string[]): Query<Item>;
     hide(fields: string[]): Query<Item>;
     results(): Item[];
 }
+export declare class Transaction {
+    private items;
+    private removed;
+    private database;
+    constructor(database: Database);
+    fetchItem<Item>(table: Table<Item>, id: string): Item;
+    createItem<Item>(table: Table<Item>, id: string, item: Item): Item;
+    removeItem<Item>(item: Item): void;
+    removeItemById<Item>(table: Table<Item>, id: string): void;
+    commit(): void;
+}
+export declare const randomItemId: (table: Table<unknown>) => string;
 declare class Table<Item> {
-    private label;
+    label: string;
     private database;
     ids: string[];
     items: Item[];

@@ -1,13 +1,14 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const index_1 = require("./index");
-const db = new index_1.Database('asd', './temp');
+const db = new index_1.Database('mydatabase', './temp');
 const users = db.useTable('users');
-console.log({ users });
+users.clearTable();
 users.insertItem('alice', {
     name: 'alice',
     age: 25
 });
-console.log({ users });
-const results = new index_1.Query(users).results();
-console.log({ results });
+const t = new index_1.Transaction(db);
+const alice = t.fetchItem(users, 'alice');
+alice.age = 26;
+t.commit();

@@ -5,8 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const fs_1 = require("fs");
 const lodash_1 = __importDefault(require("lodash"));
-const ItemId = Symbol('Item.Id');
-const ItemTableLabel = Symbol('Item.TableLabel');
+const Tracker = Symbol('Item.Id');
 const compareString = (a, b, descend) => (descend ? b.localeCompare(a) : a.localeCompare(b));
 const compareNumber = (a, b, descend) => (descend ? b - a : a - b);
 class Query {
@@ -70,11 +69,11 @@ class Query {
         this.items = this.items.filter(item => Array.isArray(item[field]) && values.every(value => item[field].includes(value)));
         return this;
     }
-    withoutAnyOf(field, values) {
+    hasNoneOfAny(field, values) {
         this.items = this.items.filter(item => Array.isArray(item[field]) && values.some(value => item[field].includes(value) === false));
         return this;
     }
-    withoutAllOf(field, values) {
+    hasNoneOfAll(field, values) {
         this.items = this.items.filter(item => Array.isArray(item[field]) && values.every(value => item[field].includes(value) === false));
         return this;
     }
@@ -134,13 +133,92 @@ class Query {
                 const field = this.hiddenFields[a];
                 delete item[field];
             }
-            item[ItemId] = this.items[i][ItemId];
-            item[ItemTableLabel] = this.items[i][ItemTableLabel];
+            item[Tracker] = this.items[i][Tracker];
         }
         return results;
     }
 }
 exports.Query = Query;
+class Transaction {
+    constructor(database) {
+        this.database = database;
+        this.items = [];
+        this.removed = [];
+    }
+    fetchItem(table, id) {
+        if (table.index.has(id) === false) {
+            throw Error('Transaction @ createItem : Invalid "id", not found in table');
+        }
+        const item = table.index.get(id);
+        const copy = lodash_1.default.cloneDeep(item);
+        copy[Tracker] = [id, table.label];
+        this.items.push(copy);
+        return copy;
+    }
+    createItem(table, id, item) {
+        if (table.index.has(id)) {
+            throw Error('Transaction @ createItem : Invalid "id", already exists in table');
+        }
+        const copy = lodash_1.default.cloneDeep(item);
+        copy[Tracker] = [id, table.label];
+        this.items.push(copy);
+        return copy;
+    }
+    removeItem(item) {
+        if (this.items.includes(item) === false) {
+            throw Error('Transaction @ removeItem : Invalid "item", not involved in Transaction');
+        }
+        this.items.splice(this.items.indexOf(item), 1);
+        const [id, tableLabel] = item[Tracker];
+        if (this.removed.some(entry => entry[1] === id)) {
+            throw Error('Transaction @ removeItem : Invalid "id", item already marked as removed');
+        }
+        this.removed.push([tableLabel, id]);
+    }
+    removeItemById(table, id) {
+        if (table.index.has(id) === false) {
+            throw Error('Transaction @ removeItemById : Invalid "id", not found in table');
+        }
+        if (this.removed.some(entry => entry[1] === id)) {
+            throw Error('Transaction @ removeItemById : Invalid "id", item already marked as removed');
+        }
+        this.removed.push([table.label, id]);
+    }
+    commit() {
+        for (let i = 0, l = this.items.length; i < l; i += 1) {
+            const item = this.items[i];
+            const [id, tableLabel] = item[Tracker];
+            const table = this.database.index.get(tableLabel);
+            if (table === undefined) {
+                throw Error('Transaction @ commit : Table not found in Database index');
+            }
+            const entry = lodash_1.default.cloneDeep(item);
+            entry[Tracker] = id;
+            table.items[table.ids.indexOf(id)] = entry;
+            table.index.set(id, entry);
+        }
+        for (let i = 0, l = this.removed.length; i < l; i += 1) {
+            const [tableLabel, id] = this.removed[i];
+            const table = this.database.index.get(tableLabel);
+            if (table === undefined) {
+                throw Error('Transaction @ commit : Table not found in Database index');
+            }
+            const index = table.ids.indexOf(id);
+            table.ids.splice(index, 1);
+            table.items.splice(index, 1);
+            table.index.delete(id);
+        }
+        this.database.save();
+    }
+}
+exports.Transaction = Transaction;
+exports.randomItemId = (table) => {
+    let id = String(Math.random());
+    while (table.index.has(id)) {
+        id = String(Math.random());
+    }
+    return id;
+};
 class Table {
     constructor(label, database) {
         this.label = label;
@@ -154,15 +232,13 @@ class Table {
             throw Error('Invalid "Item", "id" already exists in table');
         }
         const item = lodash_1.default.cloneDeep(data);
-        item[ItemId] = id;
-        item[ItemTableLabel] = this.label;
+        item[Tracker] = id;
         this.ids.push(id);
         this.items.push(item);
         this.index.set(id, item);
         this.database.save();
         const copy = lodash_1.default.cloneDeep(item);
-        copy[ItemId] = id;
-        copy[ItemTableLabel] = this.label;
+        copy[Tracker] = id;
         return copy;
     }
     clearTable() {
@@ -180,13 +256,12 @@ class Table {
         delete this.index;
     }
     updateItem(modified) {
-        const id = modified[ItemId];
+        const id = modified[Tracker];
         if (this.index.has(id) === false) {
             throw Error('Invalid "Item", "id" not found in table');
         }
         const item = lodash_1.default.cloneDeep(modified);
-        item[ItemId] = id;
-        item[ItemTableLabel] = this.label;
+        item[Tracker] = id;
         this.items[this.ids.indexOf(id)] = item;
         this.index.set(id, item);
         this.database.save();
@@ -196,14 +271,12 @@ class Table {
             throw Error('Invalid "Item", "id" not found in table');
         }
         const item = lodash_1.default.cloneDeep(data);
-        item[ItemId] = id;
-        item[ItemTableLabel] = this.label;
+        item[Tracker] = id;
         this.items[this.ids.indexOf(id)] = item;
         this.index.set(id, item);
         this.database.save();
         const copy = lodash_1.default.cloneDeep(item);
-        copy[ItemId] = id;
-        copy[ItemTableLabel] = this.label;
+        copy[Tracker] = id;
         return copy;
     }
     mergeItemById(id, data) {
@@ -212,16 +285,14 @@ class Table {
         }
         const existing = this.index.get(id);
         const item = Object.assign({}, existing, lodash_1.default.cloneDeep(data));
-        item[ItemId] = id;
-        item[ItemTableLabel] = this.label;
+        item[Tracker] = id;
         this.database.save();
         const copy = lodash_1.default.cloneDeep(item);
-        copy[ItemId] = id;
-        copy[ItemTableLabel] = this.label;
+        copy[Tracker] = id;
         return copy;
     }
     removeItem(item) {
-        const id = item[ItemId];
+        const id = item[Tracker];
         if (this.index.has(id) === false) {
             throw Error('Invalid "Item", "id" not found in table');
         }
@@ -230,8 +301,7 @@ class Table {
         this.items.splice(index, 1);
         this.index.delete(id);
         this.database.save();
-        delete item[ItemId];
-        delete item[ItemTableLabel];
+        delete item[Tracker];
     }
     removeItemById(id) {
         if (this.index.has(id) === false) {
@@ -244,7 +314,7 @@ class Table {
         this.database.save();
     }
     getItemId(item) {
-        const id = item[ItemId];
+        const id = item[Tracker];
         if (this.index.has(id) === false) {
             throw Error('Invalid "Item", "id" not found in table');
         }
@@ -256,8 +326,7 @@ class Table {
         }
         const item = this.index.get(id);
         const copy = lodash_1.default.cloneDeep(item);
-        copy[ItemId] = id;
-        copy[ItemTableLabel] = this.label;
+        copy[Tracker] = id;
         return copy;
     }
     createQuery() {

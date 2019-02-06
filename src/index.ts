@@ -208,7 +208,7 @@ export class Query <Item> {
  * - Changes are committed at once
  * 
  * At Redis:
- * - Items snapshots are captured
+ * - Item snapshots are captured
  * - Changes are recorded
  * - If items were modified in database, aborts
  * - Developer can also abort
@@ -219,8 +219,8 @@ export class Query <Item> {
   * @todo check if items still exist
   * @todo check if items were modified
   */
-export class Transaction <Items> {
-  private items: Items[];
+export class Transaction {
+  private items: unknown[];
   private removed: [string, string][];
   private database: Database;
   public constructor (database: Database) {
@@ -228,28 +228,28 @@ export class Transaction <Items> {
     this.items = [];
     this.removed = [];
   }
-  public fetchItem (table: Table<Items>, id: string) : Items {
+  public fetchItem <Item> (table: Table<Item>, id: string) : Item {
     if (table.index.has(id) === false) {
       throw Error('Transaction @ createItem : Invalid "id", not found in table');
     }
-    const item = table.index.get(id) as Items;
-    const copy = _.cloneDeep <Items> (item);
+    const item = table.index.get(id) as Item;
+    const copy = _.cloneDeep <Item> (item);
     // @ts-ignore
-    copy[Tracker] = item[Tracker];
+    copy[Tracker] = [id, table.label];
     this.items.push(copy);
     return copy;
   }
-  public createItem (table: Table<Items>, id: string, item: Items) : Items {
+  public createItem <Item> (table: Table<Item>, id: string, item: Item) : Item {
     if (table.index.has(id)) {
       throw Error('Transaction @ createItem : Invalid "id", already exists in table');
     }
-    const copy = _.cloneDeep <Items> (item);
+    const copy = _.cloneDeep <Item> (item);
     // @ts-ignore
-    copy[Tracker] = item[Tracker];
+    copy[Tracker] = [id, table.label];
     this.items.push(copy);
     return copy;
   }
-  public removeItem (item: Items) : void {
+  public removeItem <Item> (item: Item) : void {
     if (this.items.includes(item) === false) {
       throw Error('Transaction @ removeItem : Invalid "item", not involved in Transaction');
     }
@@ -261,7 +261,7 @@ export class Transaction <Items> {
     }
     this.removed.push([tableLabel, id]);
   }
-  public removeItemById (table: Table<Items>, id: string) : void {
+  public removeItemById <Item> (table: Table<Item>, id: string) : void {
     if (table.index.has(id) === false) {
       throw Error('Transaction @ removeItemById : Invalid "id", not found in table');
     }
