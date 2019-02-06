@@ -2,66 +2,65 @@
 
 document database for gangstas
 
-RuruDB is a document database which aims to provide the most basic features, useful if you are bootstrapping a product or migrating between vendors such as Google Cloud Datastore.
+RuruDB is a document database which aims to provide the most basic features, useful for prototyping & migration.
 
-## Rewrite
+## Perks
 
-| Before | After |
-|:--|:--|
-| Vanila JS | TypeScript |
-| Runs on same process | Runs on separate process |
-| Loaded in memory of same process | Loaded in memory of separate process |
-| Database is saved by separate tables per file | Database is saved as a whole single file |
-| Saved using asynchronous file system functions | Saved using synchronous file system functions |
-| Focused on performance | Focused on stability & file safety, over performance |
-| Uses temp & main file | Uses temp, main & old file |
-| No transaction support | Supports functional transactions / batch updates |
-| Uses ES6 symbols | Only in main process, to track items |
-| Supports ajv JSON schemas | Only in main process, to pre-validate items |
-| Supports random ID generation | Yes, in child process |
-| Accurate error stack traces | Both in main process & child process |
-| Asynchronous API | Yes |
-| Internally synchronous | Yes |
-| Has Jest tests & Istanbul code coverage | Yes |
+- Written in TypeScript
+- Balance between type-safety, file-safety and performance
+- Atomic database saving
+  - Data is first written to `*.rrdb.temp`
+  - We then rename `*.rrdb` to `*.rrdb.old`
+  - Finally, we rename `*.rrdb.temp` to `*.rrdb`
+- Accepts custom Item types
+- Tested with Jest
 
-| Status | Functions | Description |
-|:-:|:--|:--|
-| - | useDatabase (directory, filename) | Creates a new database, loads any existing records from file |
-| - | useTable (label, schema) | Creates new table, loads any existing records from file |
-| - | clearTable (table) | Clears a table |
-| - | removeTable (table) | Removes a table |
-| - | insertItem (table, data, id) | Inserts an item into a table |
-| - | updateItem (item) | Overwrites an existing item |
-| - | updateItemByID (table, id, data) | Overwrites an existing item by ID |
-| - | mergeItemByID (table, id, data) | Merges supplied object to an existing item |
-| - | removeItem (item) | Removes an item |
-| - | removeItemByID (table, id) | Removes an item by ID |
-| - | getItemID (item) | Returns an item's ID |
-| - | getItemByID (table, id) | Returns an item from ID |
-| - | newQuery (table) | Creates a query against the table |
-| - | ~ offset (value) | Sets offset of query results |
-| - | ~ limit (value) | Sets limit of query results |
-| - | ~ ascend (field) | Ascend a string / number field |
-| - | ~ descend (field) | Descend a string / number field |
-| - | ~ sortBy (sortFn) | Sort by function |
-| - | ~ gt (field, value) | Greater than |
-| - | ~ gte (field, value) | Greater than or equal |
-| - | ~ lt (field, value) | Less than |
-| - | ~ lte (field, value) | Less than or equal |
-| - | ~ eq (field, value) | Equal |
-| - | ~ neq (field, value) | Not equal |
-| - | ~ has (field, value) | Has value |
-| - | ~ hasAnyOf (field, values) | Has any of values |
-| - | ~ hasAllOf (field, values) | Has all of values |
-| - | ~ hasNoneOfAny (field, values) | Has none of any values |
-| - | ~ hasNoneOfAll (field, values) | Has none of all values |
-| - | ~ selectFields (...fields) | Select fields |
-| - | ~ hideFields (...fields) | Hide fields |
-| - | ~ extendWith (symbol, valueFn) | Attach a symbol, with value |
-| - | ~ filterBy (filterFn) | Filter by function |
-| - | ~ groupBy (groupFn) | Group by function |
-| - | ~ partitionBy (partitionFn) | Partition by function |
-| - | ~ results () : Array | Return query results |
+```ts
+interface User {
+  name: string;
+  age: number;
+}
+const usersTable = useTable<User> ('users');
+```
+
+| Code | Tests | Functions | Returns | Description |
+|:-:|:-:|:--|:-|:--|
+| OK | - | useDatabase (filename, directory) | null | Select / create / load a database |
+| OK | - | useTable (label, database) | Table | Select / create a table |
+| OK | - | clearTable (table) | void | Clear a table |
+| OK | - | removeTable (table) | void | Remove  a table |
+| OK | - | insertItem (table, data, id) | Item | Inserts an item into a table |
+| OK | - | updateItem (item) | void | Update / overwrite an item |
+| OK | - | updateItemByID (table, id, data) | Item | Update / overwrite an item, by ID |
+| OK | - | mergeItemByID (table, id, data) | Item | Merges supplied data to an item, by ID |
+| OK | - | removeItem (item) | void | Remove an item |
+| OK | - | removeItemByID (table, id) | void | Remove an item, by ID |
+| OK | - | getItemID (item) | ItemId | Return an item's ID |
+| OK | - | getItemByID (table, id) | Item | Return an item, from ID |
+| OK | - | createQuery (table) | Query Methods | Creates a query against a table |
+| OK | - | ~ offset (value) | Query Methods | Sets offset of query results |
+| OK | - | ~ limit (value) | Query Methods | Sets limit of query results |
+| OK | - | ~ ascend (field) | Query Methods | Ascend a string / number field |
+| OK | - | ~ descend (field) | Query Methods | Descend a string / number field |
+| OK | - | ~ gt (field, value) | Query Methods | Greater than |
+| OK | - | ~ gte (field, value) | Query Methods | Greater than or equal |
+| OK | - | ~ lt (field, value) | Query Methods | Less than |
+| OK | - | ~ lte (field, value) | Query Methods | Less than or equal |
+| OK | - | ~ eq (field, value) | Query Methods | Equal |
+| OK | - | ~ neq (field, value) | Query Methods | Not equal |
+| OK | - | ~ has (field, value) | Query Methods | Has value |
+| OK | - | ~ hasAnyOf (field, values) | Query Methods | Has any of values |
+| OK | - | ~ hasAllOf (field, values) | Query Methods | Has all of values |
+| OK | - | ~ withoutAnyOf (field, values) | Query Methods | Has none of any values |
+| OK | - | ~ withoutAllOf (field, values) | Query Methods | Has none of all values |
+| OK | - | ~ select (...fields) | Query Methods | Select fields |
+| OK | - | ~ hide (...fields) | Query Methods | Hide fields |
+| - | - | ~ sortBy (sortFn) | Query Methods | Sort by function |
+| - | - | ~ extendWith (symbol, valueFn) | Query Methods | Attach a symbol, with value |
+| - | - | ~ filterBy (filterFn) | Query Methods | Filter by function |
+| - | - | ~ groupBy (groupFn) | Query Methods | Group by function |
+| - | - | ~ partitionBy (partitionFn) | Query Methods | Partition by function |
+| OK | - | ~ results () | Items[] | Return query results |
 
 ## Database Term Equivalents
 
@@ -105,15 +104,6 @@ RuruDB is a document database which aims to provide the most basic features, use
 | Sets | - |
 | WeakMaps | - |
 | WeakSets | - |
-
-## Implementation status & test coverage
-
-#### Internals
-
-| Method | Code | Jest |
-|:--|:-:|:-:|
-| deepClone | - | - |
-| isPlainObject | - | - |
 
 ## Google Datastore Wrapper
 
