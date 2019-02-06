@@ -11,7 +11,7 @@ interface Documents {
   timestamp: number;
 }
 
-const db = new Database('mydatabase', './temp');
+const db = new Database('mydatabase', './temp', '5s');
 const users = db.useTable <User> ('users');
 users.clearTable();
 users.insertItem('alice', {

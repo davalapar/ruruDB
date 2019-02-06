@@ -5,10 +5,13 @@ import {
   existsSync,
   mkdirSync,
   readFileSync,
+  statSync,
 } from 'fs';
 
 import cloneDeep from 'lodash/cloneDeep';
 import uuidv4 from 'uuid/v4';
+import ms from 'ms';
+import moment from 'moment';
 
 export type Values = string|number|boolean|null|undefined;
 
@@ -457,14 +460,18 @@ export class Database {
   private main: string;
   private temp: string;
   private old: string;
+  private snapshotInterval: number;
+  private lastSnapshotTimestamp: number;
   public index: Map<string, Table<unknown>>; // eslint-disable-line
-  public constructor (filename: string, directory: string) {
+  public constructor (filename: string, directory: string, snapshotInterval?: string) {
     this.filename = filename;
     this.directory = directory;
     this.main = directory.concat('/', filename, '.rrdb');
     this.temp = directory.concat('/', filename, '.rrdb.temp');
     this.old = directory.concat('/', filename, '.rrdb.old');
     this.index = new Map();
+    this.snapshotInterval = snapshotInterval ? ms(snapshotInterval) : Infinity;
+    this.lastSnapshotTimestamp = -Infinity;
     if (existsSync(this.main)) {
       this.load();
     } else {
@@ -498,6 +505,23 @@ export class Database {
       mkdirSync(this.directory, { recursive: true });
     }
     writeFileSync(this.temp, dataString, 'utf8');
+    if (existsSync(this.old)) {
+      const oldStats = statSync(this.old);
+      const modified = oldStats.mtime;
+      const current = new Date();        
+      if (
+        current.valueOf() - modified.valueOf() >= this.snapshotInterval
+        && current.valueOf() - this.lastSnapshotTimestamp >= this.snapshotInterval
+      ) {
+        const snapshotFilename = ''.concat(
+          this.directory, '/',
+          this.filename, '_',
+          moment(current).format('DDMMMY_hh_mm_ss_A_x'),
+          '.rrdb.old');
+        renameSync(this.old, snapshotFilename);
+        this.lastSnapshotTimestamp = current.valueOf();
+      }
+    }
     if (existsSync(this.main) === true) {
       renameSync(this.main, this.old);
     }
