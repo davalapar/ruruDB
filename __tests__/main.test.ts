@@ -1,4 +1,20 @@
-/* eslint-disable no-unused-vars, @typescript-eslint/no-unused-vars */
+import { Database, randomItemId } from '../src/main';
+
+const d = new Database('test', './temp');
+
+test('basic', () => {
+  expect(0).toBe(0);
+});
+
+test('basic again', () => {
+  expect(3).toBe(3);
+});
+
+test('basic again sir', () => {
+  expect(5).toBe(5);
+});
+
+/*
 
 import { Database, Query, Transaction }  from './main';
 
@@ -43,3 +59,4 @@ t.removeItemById(users, 'cathy');
 const donna = t.fetchItem <User> (users, 'donna');
 t.removeItem(donna);
 t.commit();
+*/
