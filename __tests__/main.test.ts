@@ -1,8 +1,13 @@
-import { Database, randomItemId } from '../src/main';
+import { Database, Transaction } from '../src/main';
 
-const d = new Database('test', './temp');
+let db = new Database('test', './temp');
+
+beforeAll(async () => {
+  await db.initialize();
+});
 
 test('basic', () => {
+  const t = new Transaction(db);
   expect(0).toBe(0);
 });
 

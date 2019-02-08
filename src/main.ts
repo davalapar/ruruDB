@@ -1,12 +1,17 @@
 
-import {
-  writeFileSync,
-  renameSync,
-  existsSync,
-  mkdirSync,
-  readFileSync,
-  statSync,
-} from 'fs';
+import fs from 'fs';
+import { promisify } from 'util';
+
+const writeFile = promisify(fs.writeFile);
+const readFile = promisify(fs.readFile);
+const open = promisify(fs.open);
+const ftruncate = promisify(fs.ftruncate);
+const write = promisify(fs.write);
+const read = promisify(fs.read);
+const fstat = promisify(fs.fstat);
+const close = promisify(fs.close);
+const exists = promisify(fs.exists);
+const mkdir = promisify(fs.mkdir);
 
 import cloneDeep from 'lodash/cloneDeep';
 import uuidv4 from 'uuid/v4';
@@ -30,7 +35,7 @@ const compareNumber = (
   descend: boolean
 ) : number => (descend ? b - a : a - b);
 
-export class Query <Item> {
+class Query <Item> {
   private items: Item[];
   private queryOffset: number;
   private queryLimit: number;
@@ -274,7 +279,7 @@ export class Transaction {
     }
     this.removed.push([table.label, id]);
   }
-  public commit () : void {
+  public async commit () : Promise<void> {
     for (let i = 0, l = this.items.length; i < l; i += 1) {
       const item = this.items[i];
       // @ts-ignore
@@ -306,7 +311,7 @@ export class Transaction {
       table.items.splice(index, 1);
       table.index.delete(id);
     }
-    this.database.save();
+    await this.database.save();
   }
 }
 
@@ -330,8 +335,9 @@ class Table <Item> {
     this.ids = [];
     this.items = [];
     this.index = new Map();
+    database.index.set(label, this);
   }
-  public insertItem(id: string, data : Item) : Item {
+  public async insertItem(id: string, data : Item) : Promise<Item> {
     if (this.index.has(id)) {
       throw Error('Invalid "Item", "id" already exists in table');
     }
@@ -341,27 +347,27 @@ class Table <Item> {
     this.ids.push(id);
     this.items.push(item);
     this.index.set(id, item);
-    this.database.save();
+    await this.database.save();
     const copy = cloneDeep <Item> (item);
     // @ts-ignore
     copy[Tracker] = id;
     return copy;
   }
-  public clearTable() : void {
+  public async clearTable() : Promise<void> {
     this.ids = [];
     this.items = [];
     this.index.clear();
-    this.database.save();
+    await this.database.save();
   }
-  public removeTable() : void {
+  public async removeTable() : Promise<void> {
     this.database.index.delete(this.label);
-    this.database.save();
+    await this.database.save();
     delete this.label;
     delete this.ids;
     delete this.items;
     delete this.index;
   }
-  public updateItem (modified: Item) : void {
+  public async updateItem (modified: Item) : Promise<void> {
     // @ts-ignore
     const id: string = modified[Tracker];
     if (this.index.has(id) === false) {
@@ -372,9 +378,9 @@ class Table <Item> {
     item[Tracker] = id;
     this.items[this.ids.indexOf(id)] = item;
     this.index.set(id, item);
-    this.database.save();
+    await this.database.save();
   }
-  public updateItemById (id: string, data: Item) : Item {
+  public async updateItemById (id: string, data: Item) : Promise<Item> {
     if (this.index.has(id) === false) {
       throw Error('Invalid "Item", "id" not found in table');
     }
@@ -383,13 +389,13 @@ class Table <Item> {
     item[Tracker] = id;
     this.items[this.ids.indexOf(id)] = item;
     this.index.set(id, item);
-    this.database.save();
+    await this.database.save();
     const copy = cloneDeep <Item> (item);
     // @ts-ignore
     copy[Tracker] = id;
     return copy;
   }
-  public mergeItemById (id: string, data: Item) : Item {
+  public async mergeItemById (id: string, data: Item) : Promise<Item> {
     if (this.index.has(id) === false) {
       throw Error('Invalid "Item", "id" not found in table');
     }
@@ -400,13 +406,13 @@ class Table <Item> {
     };
     // @ts-ignore
     item[Tracker] = id;
-    this.database.save();
+    await this.database.save();
     const copy = cloneDeep <Item> (item);
     // @ts-ignore
     copy[Tracker] = id;
     return copy;
   }
-  public removeItem (item: Item) : void {
+  public async removeItem (item: Item) : Promise<void> {
     // @ts-ignore
     const id: string = item[Tracker];
     if (this.index.has(id) === false) {
@@ -416,11 +422,11 @@ class Table <Item> {
     this.ids.splice(index, 1);
     this.items.splice(index, 1);
     this.index.delete(id);
-    this.database.save();
+    await this.database.save();
     // @ts-ignore
     delete item[Tracker];
   }
-  public removeItemById (id: string) : void {
+  public async removeItemById (id: string) : Promise<void> {
     if (this.index.has(id) === false) {
       throw Error('Invalid "Item", "id" not found in table');
     }
@@ -428,7 +434,7 @@ class Table <Item> {
     this.ids.splice(index, 1);
     this.items.splice(index, 1);
     this.index.delete(id);
-    this.database.save();
+    await this.database.save();
   }
   public getItemId (item: Item) : string {
     // @ts-ignore
@@ -463,6 +469,8 @@ export class Database {
   private snapshotInterval: number;
   private lastSnapshotTimestamp: number;
   public index: Map<string, Table<unknown>>; // eslint-disable-line
+  private saving = false;
+  private queue: [Function, Function][] = [];
   public constructor (filename: string, directory: string, snapshotInterval?: string) {
     this.filename = filename;
     this.directory = directory;
@@ -472,69 +480,139 @@ export class Database {
     this.index = new Map();
     this.snapshotInterval = snapshotInterval ? ms(snapshotInterval) : Infinity;
     this.lastSnapshotTimestamp = -Infinity;
-    if (existsSync(this.main)) {
-      this.load();
+    this.saving = false;
+    this.queue = [];
+  }
+  public async initialize () : Promise<void> {
+    if (exists(this.main)) {
+      await this.load();
     } else {
-      this.save();
+      await this.save();
     }
   }
-  private load () : void {
+  private async load () : Promise<void> {
     this.index.clear();
-    const dbDataString: string = readFileSync(this.main, 'utf8');
+    const dbDataString: string = await readFile(this.main, 'utf8');
     const data = JSON.parse(dbDataString);
     for (let i = 0, l = data.length; i < l; i += 1) {
       const [label, ids, items] = data[i];
       const table = new Table <unknown> (label, this);
-      this.index.set(label, table);
       for (let a = 0, b = items.length; a < b; a += 1) {
-        table.insertItem(ids[a], items[a]);
+        await table.insertItem(ids[a], items[a]);
       }
     }
   }
-  public save () : void {
-    const tables = Array.from(this.index.entries());
-    const data = new Array(tables.length);
-    for (let i = 0, l = tables.length; i < l; i += 1) {
-      const [label, table] = tables[i];
-      const ids = table.ids;
-      const items = table.items;
-      data[i] = [label, ids, items];
+  private async internalSaveLoop () : Promise<void> {
+
+    // Ensure directory existence
+    if (await exists(this.directory) === false) {
+      await mkdir(this.directory, { recursive: true });
     }
-    const dataString = JSON.stringify(data, null, 2);
-    if (existsSync(this.directory) === false) {
-      mkdirSync(this.directory, { recursive: true });
-    }
-    writeFileSync(this.temp, dataString, 'utf8');
-    if (existsSync(this.old)) {
-      const oldStats = statSync(this.old);
-      const modified = oldStats.mtime;
-      const current = new Date();        
-      if (
-        current.valueOf() - modified.valueOf() >= this.snapshotInterval
-        && current.valueOf() - this.lastSnapshotTimestamp >= this.snapshotInterval
-      ) {
-        const snapshotFilename = ''.concat(
-          this.directory, '/',
-          this.filename, '_',
-          moment(current).format('DDMMMY_hh_mm_ss_A_x'),
-          '.rrdb.old');
-        renameSync(this.old, snapshotFilename);
-        this.lastSnapshotTimestamp = current.valueOf();
+
+    // Ensure file existence in parallel
+    await Promise.all([
+      async () => {
+        if (await exists(this.main) === false) {
+          await writeFile(this.main, '', 'utf8');
+        }
+      },
+      async () => {
+        if (await exists(this.temp) === false) {
+          await writeFile(this.temp, '', 'utf8');
+        }
+      },
+      async () => {
+        if (await exists(this.old) === false) {
+          await writeFile(this.old, '', 'utf8');
+        }
+      },
+    ]);
+
+    // Open file descriptors
+    const [mainFd, tempFd, oldFd] = await Promise.all([
+      open(this.main, 'r+'),
+      open(this.temp, 'r+'),
+      open(this.old, 'r+')
+    ]);
+
+    // Recursively process queue
+    while (this.queue.length > 0) {
+      const fetched = this.queue;
+      this.queue = [];
+      try {
+        const tables = Array.from(this.index.entries());
+        const data = new Array(tables.length);
+        for (let i = 0, l = tables.length; i < l; i += 1) {
+          const [label, table] = tables[i];
+          const ids = table.ids;
+          const items = table.items;
+          data[i] = [label, ids, items];
+        }
+        const dataString = JSON.stringify(data, null, 2);
+        await ftruncate(tempFd);
+        await write(tempFd, dataString, 0, 'utf8');
+
+        const oldStat = await fstat(oldFd);
+        if (oldStat.size > 0) {
+          const modified = oldStat.mtime;
+          const current = new Date();
+          if (
+            current.valueOf() - modified.valueOf() >= this.snapshotInterval
+            && current.valueOf() - this.lastSnapshotTimestamp >= this.snapshotInterval
+          ) {
+            const snapshot = ''.concat(
+              this.directory, '/',
+              this.filename, '_',
+              moment(current).format('DDMMMY_hh_mm_ss_A_x'),
+              '.rrdb.old');
+            const oldContent = Buffer.alloc(oldStat.size);
+            await read(mainFd, oldContent, 0, oldStat.size, null);
+            await writeFile(snapshot, oldContent, 'utf8');
+            this.lastSnapshotTimestamp = current.valueOf();
+          }
+        }
+        const mainStat = await fstat(mainFd);
+        const mainContent = Buffer.alloc(mainStat.size);
+        await read(mainFd, mainContent, 0, mainStat.size, null);
+        await ftruncate(oldFd);
+        await write(oldFd, mainContent, 0, mainStat.size, 0);
+        await ftruncate(mainFd);
+        await write(mainFd, dataString, 0, 'utf8');
+        for (let i = 0, l = fetched.length; i < l; i += 1) {
+          const [resolve] = fetched[i];
+          resolve();
+        }
+      } catch (e) {
+        for (let i = 0, l = fetched.length; i < l; i += 1) {
+          const [,reject] = fetched[i];
+          reject(e);
+        }
       }
     }
-    if (existsSync(this.main) === true) {
-      renameSync(this.main, this.old);
-    }
-    renameSync(this.temp, this.main);
+
+    // Close file descriptors in parallel
+    await Promise.all([
+      close(mainFd),
+      close(tempFd),
+      close(oldFd)
+    ]);
+
+    this.saving = false;
+  }
+  public async save () : Promise<void> {
+    return new Promise((resolve, reject) => {
+      this.queue.push([resolve, reject]);
+      if (this.saving === false) {
+        this.saving = true;
+        this.internalSaveLoop();
+      }
+    });
   }
   public useTable <Item> (label: string) : Table<Item> {
     if (this.index.has(label)) {
       return this.index.get(label) as Table<Item>;
     }
     const table = new Table <Item> (label, this);
-    this.index.set(label, table);
     return table;
   }
 }
-
-
