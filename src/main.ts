@@ -352,20 +352,6 @@ export class Table <Item> {
     copy[Tracker] = id;
     return copy;
   }
-  public async clearTable() : Promise<void> {
-    this.ids = [];
-    this.items = [];
-    this.index.clear();
-    await this.database.save();
-  }
-  public async removeTable() : Promise<void> {
-    this.database.index.delete(this.label);
-    await this.database.save();
-    delete this.label;
-    delete this.ids;
-    delete this.items;
-    delete this.index;
-  }
   public async updateItem (modified: Item) : Promise<void> {
     // @ts-ignore
     const id: string = modified[Tracker];
@@ -452,6 +438,20 @@ export class Table <Item> {
     // @ts-ignore
     copy[Tracker] = id;
     return copy;
+  }
+  public async clearTable() : Promise<void> {
+    this.ids = [];
+    this.items = [];
+    this.index.clear();
+    await this.database.save();
+  }
+  public async removeTable() : Promise<void> {
+    this.database.index.delete(this.label);
+    await this.database.save();
+    delete this.label;
+    delete this.ids;
+    delete this.items;
+    delete this.index;
   }
   public createQuery () : Query <Item> {
     return new Query(this);

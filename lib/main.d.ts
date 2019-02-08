@@ -46,8 +46,6 @@ export declare class Table<Item> {
     constructor(label: string, database: Database);
     randomItemId(): string;
     insertItem(id: string, data: Item): Promise<Item>;
-    clearTable(): Promise<void>;
-    removeTable(): Promise<void>;
     updateItem(modified: Item): Promise<void>;
     updateItemById(id: string, data: Item): Promise<Item>;
     mergeItemById(id: string, data: Item): Promise<Item>;
@@ -55,6 +53,8 @@ export declare class Table<Item> {
     removeItemById(id: string): Promise<void>;
     getItemId(item: Item): string;
     getItemById(id: string): Item;
+    clearTable(): Promise<void>;
+    removeTable(): Promise<void>;
     createQuery(): Query<Item>;
 }
 export declare class Database {
