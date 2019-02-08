@@ -306,10 +306,12 @@ export class Transaction {
       if (table === undefined) {
         throw Error('Transaction @ commit : Table not found in Database index');
       }
-      const index = table.ids.indexOf(id);
-      table.ids.splice(index, 1);
-      table.items.splice(index, 1);
-      table.index.delete(id);
+      if (table.index.has(id)) {
+        const index = table.ids.indexOf(id);
+        table.ids.splice(index, 1);
+        table.items.splice(index, 1);
+        table.index.delete(id);
+      }
     }
     await this.database.save();
   }
@@ -448,10 +450,10 @@ export class Table <Item> {
   public async removeTable() : Promise<void> {
     this.database.index.delete(this.label);
     await this.database.save();
-    delete this.label;
-    delete this.ids;
-    delete this.items;
-    delete this.index;
+    // delete this.label;
+    // delete this.ids;
+    // delete this.items;
+    // delete this.index;
   }
   public createQuery () : Query <Item> {
     return new Query(this);
@@ -602,7 +604,7 @@ export class Database {
       this.queue.push([resolve, reject]);
       if (this.saving === false) {
         this.saving = true;
-        this.internalSaveLoop();
+        process.nextTick(this.internalSaveLoop);
       }
     });
   }
