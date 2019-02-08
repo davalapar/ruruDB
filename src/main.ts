@@ -35,7 +35,7 @@ const compareNumber = (
   descend: boolean
 ) : number => (descend ? b - a : a - b);
 
-class Query <Item> {
+export class Query <Item> {
   private items: Item[];
   private queryOffset: number;
   private queryLimit: number;
@@ -315,15 +315,7 @@ export class Transaction {
   }
 }
 
-export const randomItemId = (table: Table<unknown>) : string => {
-  let id = uuidv4();
-  while (table.index.has(id)) {
-    id = uuidv4();
-  }
-  return id;
-};
-
-class Table <Item> {
+export class Table <Item> {
   public label: string;
   private database: Database;
   public ids: string[];
@@ -336,6 +328,13 @@ class Table <Item> {
     this.items = [];
     this.index = new Map();
     database.index.set(label, this);
+  }
+  public randomItemId () : string {
+    let id = uuidv4();
+    while (this.index.has(id)) {
+      id = uuidv4();
+    }
+    return id;
   }
   public async insertItem(id: string, data : Item) : Promise<Item> {
     if (this.index.has(id)) {

@@ -1,5 +1,5 @@
 export declare type Values = string | number | boolean | null | undefined;
-declare class Query<Item> {
+export declare class Query<Item> {
     private items;
     private queryOffset;
     private queryLimit;
@@ -37,14 +37,14 @@ export declare class Transaction {
     removeItemById<Item>(table: Table<Item>, id: string): void;
     commit(): Promise<void>;
 }
-export declare const randomItemId: (table: Table<unknown>) => string;
-declare class Table<Item> {
+export declare class Table<Item> {
     label: string;
     private database;
     ids: string[];
     items: Item[];
     index: Map<string, Item>;
     constructor(label: string, database: Database);
+    randomItemId(): string;
     insertItem(id: string, data: Item): Promise<Item>;
     clearTable(): Promise<void>;
     removeTable(): Promise<void>;
@@ -75,5 +75,4 @@ export declare class Database {
     save(): Promise<void>;
     useTable<Item>(label: string): Table<Item>;
 }
-export {};
 //# sourceMappingURL=main.d.ts.map
