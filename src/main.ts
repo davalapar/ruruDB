@@ -481,6 +481,8 @@ export class Database {
     this.lastSnapshotTimestamp = -Infinity;
     this.saving = false;
     this.queue = [];
+    this.save = this.save.bind(this);
+    this.internalSaveLoop = this.internalSaveLoop.bind(this);
   }
   public async initialize () : Promise<void> {
     if (exists(this.main)) {
@@ -508,24 +510,16 @@ export class Database {
       await mkdir(this.directory, { recursive: true });
     }
 
-    // Ensure file existence in parallel
-    await Promise.all([
-      async () => {
-        if (await exists(this.main) === false) {
-          await writeFile(this.main, '', 'utf8');
-        }
-      },
-      async () => {
-        if (await exists(this.temp) === false) {
-          await writeFile(this.temp, '', 'utf8');
-        }
-      },
-      async () => {
-        if (await exists(this.old) === false) {
-          await writeFile(this.old, '', 'utf8');
-        }
-      },
-    ]);
+    // Ensure file existence
+    if (await exists(this.main) === false) {
+      await writeFile(this.main, '', 'utf8');
+    }
+    if (await exists(this.temp) === false) {
+      await writeFile(this.temp, '', 'utf8');
+    }
+    if (await exists(this.old) === false) {
+      await writeFile(this.old, '', 'utf8');
+    }
 
     // Open file descriptors
     const [mainFd, tempFd, oldFd] = await Promise.all([
@@ -596,7 +590,12 @@ export class Database {
       close(oldFd)
     ]);
 
-    this.saving = false;
+    if (this.queue.length > 0) {
+      process.nextTick(this.internalSaveLoop);
+    } else {
+      this.saving = false;
+    }
+
   }
   public async save () : Promise<void> {
     return new Promise((resolve, reject) => {
