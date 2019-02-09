@@ -1,6 +1,6 @@
 {
   "name": "rurudb",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "db",
   "main": "./lib/main.js",
   "types": "./lib/main.d.ts",
@@ -8,7 +8,6 @@
   "license": "MIT",
   "dependencies": {
     "@types/lodash": "^4.14.120",
-    "@types/moment": "^2.13.0",
     "@types/ms": "^0.7.30",
     "@types/node": "^10.12.19",
     "@types/uuid": "^3.4.4",
