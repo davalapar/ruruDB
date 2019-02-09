@@ -109,22 +109,22 @@ export class Query <Item> {
   }
   public hasAnyOf (field: string, values: Values[]) : Query <Item> {
     // @ts-ignore
-    this.items = this.items.filter(item => Array.isArray(item[field]) && values.some(value => (item[field] as PlainArray).includes(value)));
+    this.items = this.items.filter(item => Array.isArray(item[field]) && values.some(value => (item[field]).includes(value)));
     return this;
   }
   public hasAllOf (field: string, values: Values[]) : Query <Item> {
     // @ts-ignore
-    this.items = this.items.filter(item => Array.isArray(item[field]) && values.every(value => (item[field] as PlainArray).includes(value)));
+    this.items = this.items.filter(item => Array.isArray(item[field]) && values.every(value => (item[field]).includes(value)));
     return this;
   }
   public hasNoneOfAny (field: string, values: Values[]) : Query <Item> {
     // @ts-ignore
-    this.items = this.items.filter(item => Array.isArray(item[field]) && values.some(value => (item[field] as PlainArray).includes(value) === false));
+    this.items = this.items.filter(item => Array.isArray(item[field]) && values.some(value => (item[field]).includes(value) === false));
     return this;
   }
   public hasNoneOfAll (field: string, values: Values[]) : Query <Item> {
     // @ts-ignore
-    this.items = this.items.filter(item => Array.isArray(item[field]) && values.every(value => (item[field] as PlainArray).includes(value) === false));
+    this.items = this.items.filter(item => Array.isArray(item[field]) && values.every(value => (item[field]).includes(value) === false));
     return this;
   }
   public select (fields: string[]) : Query <Item> {
@@ -166,11 +166,11 @@ export class Query <Item> {
             // @ts-ignore
             } else if (typeof a[field] === 'string') {
               // @ts-ignore
-              return compareString(a[field] as string, b[field] as string, fieldDescend);
+              return compareString(a[field], b[field], fieldDescend);
             // @ts-ignore
             } else if (typeof a[field] === 'number') {
               // @ts-ignore
-              return compareNumber(a[field] as number, b[field] as number, fieldDescend);
+              return compareNumber(a[field], b[field], fieldDescend);
             }
           }
         }
