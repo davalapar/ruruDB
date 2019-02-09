@@ -9,7 +9,6 @@ const ftruncate = promisify(fs.ftruncate);
 const write = promisify(fs.write);
 const read = promisify(fs.read);
 const fstat = promisify(fs.fstat);
-const close = promisify(fs.close);
 const exists = promisify(fs.exists);
 const mkdir = promisify(fs.mkdir);
 
@@ -472,6 +471,9 @@ export class Database {
   public index: Map<string, Table<unknown>>; // eslint-disable-line
   private saving = false;
   private queue: [Function, Function][] = [];
+  private mainFd: number;
+  private tempFd: number;
+  private oldFd: number;
   public constructor (filename: string, directory: string, snapshotInterval?: string) {
     this.filename = filename;
     this.directory = directory;
@@ -484,10 +486,14 @@ export class Database {
     this.saving = false;
     this.queue = [];
     this.save = this.save.bind(this);
+    this.internalBeforeSave = this.internalBeforeSave.bind(this);
     this.internalSaveLoop = this.internalSaveLoop.bind(this);
+    this.mainFd = 0;
+    this.tempFd = 0;
+    this.oldFd = 0;
   }
   public async initialize () : Promise<void> {
-    if (exists(this.main)) {
+    if (await exists(this.main)) {
       await this.load();
     } else {
       await this.save();
@@ -505,8 +511,7 @@ export class Database {
       }
     }
   }
-  private async internalSaveLoop () : Promise<void> {
-
+  private async internalBeforeSave () : Promise<void> {
     // Ensure directory existence
     if (await exists(this.directory) === false) {
       await mkdir(this.directory, { recursive: true });
@@ -522,89 +527,84 @@ export class Database {
     if (await exists(this.old) === false) {
       await writeFile(this.old, '', 'utf8');
     }
+    this.mainFd = await open(this.main, 'r+');
+    this.tempFd = await open(this.temp, 'r+');
+    this.oldFd = await open(this.old, 'r+');
+    process.nextTick(this.internalSaveLoop);
+  }
+  private async internalSaveLoop () : Promise<void> {
+    const fetched = this.queue;
+    this.queue = [];
+    let error: Error|undefined = undefined;;
+    try {
+      const tables = Array.from(this.index.entries());
+      const data = new Array(tables.length);
+      for (let i = 0, l = tables.length; i < l; i += 1) {
+        const [label, table] = tables[i];
+        const ids = table.ids;
+        const items = table.items;
+        data[i] = [label, ids, items];
+      }
+      const dataString = JSON.stringify(data, null, 2);
+      await ftruncate(this.tempFd);
+      await write(this.tempFd, dataString, 0, 'utf8');
 
-    // Open file descriptors
-    const [mainFd, tempFd, oldFd] = await Promise.all([
-      open(this.main, 'r+'),
-      open(this.temp, 'r+'),
-      open(this.old, 'r+')
-    ]);
-
-    // Recursively process queue
-    while (this.queue.length > 0) {
-      const fetched = this.queue;
-      this.queue = [];
-      try {
-        const tables = Array.from(this.index.entries());
-        const data = new Array(tables.length);
-        for (let i = 0, l = tables.length; i < l; i += 1) {
-          const [label, table] = tables[i];
-          const ids = table.ids;
-          const items = table.items;
-          data[i] = [label, ids, items];
-        }
-        const dataString = JSON.stringify(data, null, 2);
-        await ftruncate(tempFd);
-        await write(tempFd, dataString, 0, 'utf8');
-
-        const oldStat = await fstat(oldFd);
-        if (oldStat.size > 0) {
-          const modified = oldStat.mtime;
-          const current = new Date();
-          if (
-            current.valueOf() - modified.valueOf() >= this.snapshotInterval
-            && current.valueOf() - this.lastSnapshotTimestamp >= this.snapshotInterval
-          ) {
-            const snapshot = ''.concat(
-              this.directory, '/',
-              this.filename, '_',
-              moment(current).format('DDMMMY_hh_mm_ss_A_x'),
-              '.rrdb.old');
-            const oldContent = Buffer.alloc(oldStat.size);
-            await read(mainFd, oldContent, 0, oldStat.size, null);
-            await writeFile(snapshot, oldContent, 'utf8');
-            this.lastSnapshotTimestamp = current.valueOf();
-          }
-        }
-        const mainStat = await fstat(mainFd);
-        const mainContent = Buffer.alloc(mainStat.size);
-        await read(mainFd, mainContent, 0, mainStat.size, null);
-        await ftruncate(oldFd);
-        await write(oldFd, mainContent, 0, mainStat.size, 0);
-        await ftruncate(mainFd);
-        await write(mainFd, dataString, 0, 'utf8');
-        for (let i = 0, l = fetched.length; i < l; i += 1) {
-          const [resolve] = fetched[i];
-          resolve();
-        }
-      } catch (e) {
-        for (let i = 0, l = fetched.length; i < l; i += 1) {
-          const [,reject] = fetched[i];
-          reject(e);
+      const oldStat = await fstat(this.oldFd);
+      if (oldStat.size > 0) {
+        const modified = oldStat.mtime;
+        const current = new Date();
+        if (
+          current.valueOf() - modified.valueOf() >= this.snapshotInterval
+          && current.valueOf() - this.lastSnapshotTimestamp >= this.snapshotInterval
+        ) {
+          const snapshot = ''.concat(
+            this.directory, '/',
+            this.filename, '_',
+            moment(current).format('DDMMMY_hh_mm_ss_A_x'),
+            '.rrdb.old');
+          const oldContent = Buffer.alloc(oldStat.size);
+          await read(this.mainFd, oldContent, 0, oldStat.size, 0);
+          await writeFile(snapshot, oldContent, 'utf8');
+          this.lastSnapshotTimestamp = current.valueOf();
         }
       }
+      const mainStat = await fstat(this.mainFd);
+      const mainContent = Buffer.alloc(mainStat.size);
+      await read(this.mainFd, mainContent, 0, mainStat.size, 0);
+      await ftruncate(this.oldFd);
+      await write(this.oldFd, mainContent, 0, mainStat.size, 0);
+      await ftruncate(this.mainFd);
+      await write(this.mainFd, dataString, 0, 'utf8');
+    } catch (e) {
+      error = e;
     }
-
-    // Close file descriptors in parallel
-    await Promise.all([
-      close(mainFd),
-      close(tempFd),
-      close(oldFd)
-    ]);
 
     if (this.queue.length > 0) {
       process.nextTick(this.internalSaveLoop);
     } else {
       this.saving = false;
+      fs.closeSync(this.mainFd);
+      fs.closeSync(this.tempFd);
+      fs.closeSync(this.oldFd);
     }
-
+    if (error !== undefined) {
+      for (let i = 0, l = fetched.length; i < l; i += 1) {
+        const [,reject] = fetched[i];
+        reject(error);
+      }
+    } else {
+      for (let i = 0, l = fetched.length; i < l; i += 1) {
+        const [resolve] = fetched[i];
+        resolve();
+      }
+    }
   }
   public async save () : Promise<void> {
     return new Promise((resolve, reject) => {
       this.queue.push([resolve, reject]);
       if (this.saving === false) {
         this.saving = true;
-        process.nextTick(this.internalSaveLoop);
+        process.nextTick(this.internalBeforeSave);
       }
     });
   }

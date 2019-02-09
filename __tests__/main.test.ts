@@ -138,6 +138,17 @@ test('t11: Transaction ', async () => {
   expect(t11.ids.length).toBe(1);
 });
 
+const sleep = (timeout: number) : Promise<void> => new Promise(resolve => setTimeout(resolve, timeout));
+
+test('t12: abuse test ', async () => {
+  const t12 = new Table <User> ('t12', db);
+  const i = setInterval(() => t12.insertItem (t12.randomItemId(), { name: 'cath' }), 0);
+  await sleep(1000);
+  clearInterval(i);
+  await t12.clearTable();
+  expect(true).toBe(true);
+});
+
 /*
 
 import { Database, Query, Transaction }  from './main';

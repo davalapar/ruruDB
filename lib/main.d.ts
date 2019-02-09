@@ -68,9 +68,13 @@ export declare class Database {
     index: Map<string, Table<unknown>>;
     private saving;
     private queue;
+    private mainFd;
+    private tempFd;
+    private oldFd;
     constructor(filename: string, directory: string, snapshotInterval?: string);
     initialize(): Promise<void>;
     private load;
+    private internalBeforeSave;
     private internalSaveLoop;
     save(): Promise<void>;
     useTable<Item>(label: string): Table<Item>;
