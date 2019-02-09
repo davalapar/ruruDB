@@ -12,7 +12,7 @@ RuruDB is a document database with basic features for prototyping purposes.
 - Uses low-level file descriptors for performance
 - Database file snapshots
 - Atomic database file saves
-  - Data is first written to `filename.rrdb.temp`
+  - Data is first written to `*.rrdb.temp`
   - Stale data in `*.rrdb` is transferred do `*.rrdb.old`
   - Data is finally written to `*.rrdb`
 - Supports `string`, `number`, `boolean`, `null`, `undefined`, `Object` & `Array` properties
