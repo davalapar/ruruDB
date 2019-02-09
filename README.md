@@ -32,7 +32,7 @@ RuruDB is a document database with basic features for prototyping purposes.
   - Smaller file size
   - Support for `Typedarrays`, `NaN`, `+Infinity` & `-Infinity` values
 
-## Database Term Equivalents
+## Implementation Term Equivalents
 
 | RuruDB | Google Datastore | MongoDB | MySQL |
 |:-:|:-:|:-:|:-:|
@@ -126,6 +126,15 @@ import { Query } from 'rurudb';
 | - | - | - | `Query().partitionBy(partitionFn)` | `Query()` | Partition by function |
 | `OK` | - | - | `Query().results()` | `Items[]` | Return query results |
 
+#### Notes on `ascend(field)` and `descend(field)`
+
+- Designed for sorting of `string` and `number` fields
+- Sorts can be stacked, meaning you can sort by multiple fields easily
+
+#### Notes on `results()`
+
+- Returned items are clones
+- Modifying them directly won't affect stored data, unless you use `Table.updateItem(item)` on them
 
 ## `Transaction`
 
