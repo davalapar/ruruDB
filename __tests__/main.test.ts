@@ -28,6 +28,7 @@ test('t2: insertItem, randomItemId', async () => {
   expect(t2.ids.length).toBe(1);
   expect(t2.index.has(aliceId)).toBe(true);
   expect(t2.insertItem(aliceId, aliceData)).rejects.toThrow();
+  await t2.clearTable();
 });
 
 test('t3: updateItem', async () => {
@@ -44,6 +45,7 @@ test('t3: updateItem', async () => {
   if (fetched !== undefined) {
     expect(fetched.age).toBe(26);
   }
+  await t3.clearTable();
 });
 
 test('t4: updateItemById', async () => {
@@ -57,6 +59,7 @@ test('t4: updateItemById', async () => {
   aliceData.age = 27;
   alice = await t4.updateItemById(aliceId, aliceData);
   expect(alice.age).toBe(27);
+  await t4.clearTable();
 });
 
 test('t5: mergeItemById', async () => {
@@ -67,6 +70,7 @@ test('t5: mergeItemById', async () => {
   let alice = await t5.insertItem (aliceId, aliceData);
   alice = await t5.mergeItemById(aliceId, { address: 'yeah' });
   expect(alice.address).toBe('yeah');
+  await t5.clearTable();
 });
 
 test('t6: removeItem ', async () => {
@@ -79,6 +83,7 @@ test('t6: removeItem ', async () => {
   expect(t6.ids.length).toBe(0);
   expect(t6.items.length).toBe(0);
   expect(t6.index.size).toBe(0);
+  await t6.clearTable();
 });
 
 test('t7: removeItemById ', async () => {
@@ -86,11 +91,12 @@ test('t7: removeItemById ', async () => {
   await t7.clearTable();
   const aliceId = t7.randomItemId();
   const aliceData = { name: 'alice', age: 25 };
-  const alice = await t7.insertItem (aliceId, aliceData);
+  await t7.insertItem (aliceId, aliceData);
   await t7.removeItemById(aliceId);
   expect(t7.ids.length).toBe(0);
   expect(t7.items.length).toBe(0);
   expect(t7.index.size).toBe(0);
+  await t7.clearTable();
 });
 
 test('t8: getItemId ', async () => {
@@ -101,6 +107,7 @@ test('t8: getItemId ', async () => {
   const alice = await t8.insertItem (aliceId, aliceData);
   const id = t8.getItemId(alice);
   expect(aliceId).toBe(id);
+  await t8.clearTable();
 });
 
 test('t9: getItemById ', async () => {
@@ -111,6 +118,7 @@ test('t9: getItemById ', async () => {
   const alice = await t9.insertItem (aliceId, aliceData);
   const item = t9.getItemById(aliceId);
   expect(alice).toStrictEqual(item);
+  await t9.clearTable();
 });
 
 test('t10: removeTable ', async () => {
@@ -118,6 +126,7 @@ test('t10: removeTable ', async () => {
   await t10.clearTable();
   t10.removeTable();
   expect(db.index.has('t10')).toStrictEqual(false);
+  await t10.clearTable();
 });
 
 test('t11: Transaction ', async () => {
@@ -136,16 +145,43 @@ test('t11: Transaction ', async () => {
   t.removeItem(bob);
   await t.commit();
   expect(t11.ids.length).toBe(1);
+  await t11.clearTable();
 });
 
 const sleep = (timeout: number) : Promise<void> => new Promise(resolve => setTimeout(resolve, timeout));
 
-test('t12: abuse test ', async () => {
+test('t12: abuse test case # 1 ', async () => {
   const t12 = new Table <User> ('t12', db);
   const i = setInterval(() => t12.insertItem (t12.randomItemId(), { name: 'cath' }), 0);
-  await sleep(1000);
+  await sleep(250);
   clearInterval(i);
   await t12.clearTable();
+  expect(true).toBe(true);
+});
+
+test('t13: abuse test case # 2 ', async () => {
+  interface CustomItem {
+    str: string;
+    number: number;
+    bool: boolean;
+    null: null;
+    undefined: undefined;
+    roles: string[];
+    numbers: number[];
+  }
+  const t13 = new Table <CustomItem> ('t13', db);
+  const i = setInterval(() => t13.insertItem (t13.randomItemId(), {
+    str: 'something',
+    number: 123,
+    bool: true,
+    null: null,
+    undefined: undefined,
+    roles: ['admin', 'user'],
+    numbers: [1,2,3,4],
+  }), 0);
+  await sleep(250);
+  clearInterval(i);
+  await t13.clearTable();
   expect(true).toBe(true);
 });
 

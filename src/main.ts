@@ -18,6 +18,8 @@ import ms from 'ms';
 import moment from 'moment';
 
 export type Values = string|number|boolean|null|undefined;
+type FilterFn <Item> = (item: Item, id: string) => boolean;
+type SortFn <Item> = (a: Item, b: Item) => number;
 
 // Symbols
 const Tracker = Symbol('Item.Id');
@@ -38,7 +40,7 @@ export class Query <Item> {
   private items: Item[];
   private queryOffset: number;
   private queryLimit: number;
-  private sorts: [string, boolean][];
+  private sorts: ([string, boolean]|[Function])[];
   private selectedFields: string[];
   private hiddenFields: string[];
   public constructor (table: Table<Item>) {
@@ -63,6 +65,11 @@ export class Query <Item> {
   }
   public descend (field: string) : Query <Item>  {
     this.sorts.push([field, true]);
+    return this;
+  }
+  public sortBy (sortFn: SortFn<Item>) : Query <Item> {
+    // @ts-ignore
+    this.sorts.push(sortFn);
     return this;
   }
   public gt (field: string, value: number) : Query <Item> {
@@ -128,31 +135,43 @@ export class Query <Item> {
     this.hiddenFields = fields.slice();
     return this;
   }
+  public filterBy (filterFn: FilterFn<Item>) : Query <Item> {
+    // @ts-ignore
+    this.items = this.items.filter(item => filterFn(item, item[Tracker]));
+    return this;
+  }
   public results () : Item[] {
     if (this.sorts.length > 0) {
       this.items.sort((a, b) => {
         for (let i = 0, l = this.sorts.length; i < l; i += 1) {
-          const [field, fieldDescend] = this.sorts[i];
-          // If field of both items don't match: EXIT LOOP
-          // @ts-ignore
-          if (typeof a[field] !== typeof b[field]) {
-            break;
-          // If item fields are't "string" or "number": EXIT LOOP
-          // @ts-ignore
-          } else if (typeof a[field] !== 'string' || typeof a[field] !== 'number') {
-            break;
-          // If value of both items are equal: SKIP SORT
-          // @ts-ignore
-          } else if (a[field] === b[field]) {
-            continue;
-          // @ts-ignore
-          } else if (typeof a[field] === 'string') {
+          const sort = this.sorts[i];
+          if (typeof sort[0] === 'function') {
+            const [sortFn] = sort;
             // @ts-ignore
-            return compareString(a[field] as string, b[field] as string, fieldDescend);
-          // @ts-ignore
-          } else if (typeof a[field] === 'number') {
+            return sortFn(a, b);
+          } else {
+            const [field, fieldDescend] = sort;
+            // If field of both items don't match: EXIT LOOP
             // @ts-ignore
-            return compareNumber(a[field] as number, b[field] as number, fieldDescend);
+            if (typeof a[field] !== typeof b[field]) {
+              break;
+            // If item fields are't "string" or "number": EXIT LOOP
+            // @ts-ignore
+            } else if (typeof a[field] !== 'string' || typeof a[field] !== 'number') {
+              break;
+            // If value of both items are equal: SKIP SORT
+            // @ts-ignore
+            } else if (a[field] === b[field]) {
+              continue;
+            // @ts-ignore
+            } else if (typeof a[field] === 'string') {
+              // @ts-ignore
+              return compareString(a[field] as string, b[field] as string, fieldDescend);
+            // @ts-ignore
+            } else if (typeof a[field] === 'number') {
+              // @ts-ignore
+              return compareNumber(a[field] as number, b[field] as number, fieldDescend);
+            }
           }
         }
         return 0;

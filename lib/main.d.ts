@@ -1,4 +1,6 @@
 export declare type Values = string | number | boolean | null | undefined;
+declare type FilterFn<Item> = (item: Item, id: string) => boolean;
+declare type SortFn<Item> = (a: Item, b: Item) => number;
 export declare class Query<Item> {
     private items;
     private queryOffset;
@@ -11,6 +13,7 @@ export declare class Query<Item> {
     limit(value: number): Query<Item>;
     ascend(field: string): Query<Item>;
     descend(field: string): Query<Item>;
+    sortBy(sortFn: SortFn<Item>): Query<Item>;
     gt(field: string, value: number): Query<Item>;
     gte(field: string, value: number): Query<Item>;
     lt(field: string, value: number): Query<Item>;
@@ -24,6 +27,7 @@ export declare class Query<Item> {
     hasNoneOfAll(field: string, values: Values[]): Query<Item>;
     select(fields: string[]): Query<Item>;
     hide(fields: string[]): Query<Item>;
+    filterBy(filterFn: FilterFn<Item>): Query<Item>;
     results(): Item[];
 }
 export declare class Transaction {
@@ -79,4 +83,5 @@ export declare class Database {
     save(): Promise<void>;
     useTable<Item>(label: string): Table<Item>;
 }
+export {};
 //# sourceMappingURL=main.d.ts.map

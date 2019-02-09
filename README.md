@@ -120,16 +120,21 @@ import { Query } from 'rurudb';
 | `OK` | - | - | `Query().hasNoneOfAll(field, values)` | `Query()` | If array field has none of all specified values |
 | `OK` | - | - | `Query().select(fields)` | `Query()` | Select fields |
 | `OK` | - | - | `Query().hide(fields)` | `Query()` | Hide fields |
-| - | - | - | `Query().sortBy(sortFn)` | `Query()` | Sort by function |
-| - | - | - | `Query().filterBy(filterFn)` | `Query()` | Filter by function |
-| - | - | - | `Query().groupBy(groupFn)` | `Query()` | Group by function |
-| - | - | - | `Query().partitionBy(partitionFn)` | `Query()` | Partition by function |
+| `OK` | - | - | `Query().sortBy(sortFn)` | `Query()` | Sort by function, must return a `number` |
+| `OK` | - | - | `Query().filterBy(filterFn)` | `Query()` | Filter by function, must return a `boolean` |
 | `OK` | - | - | `Query().results()` | `Items[]` | Return query results |
 
-#### Notes on `ascend(field)` and `descend(field)`
+#### Notes on `filterBy(filterFn)`
 
-- Designed for sorting of `string` and `number` fields
+- `filterBy`'s `filterFn` must accept `(item: Item, id: string)` and return `boolean`
+  - Check out `Array.filter` at MDN for reference
+
+#### Notes on `ascend(field)`, `descend(field)` and `sortBy(sortFn)`
+
 - Sorts can be stacked, meaning you can sort by multiple fields easily
+- `ascend` & `descend` are designed for sorting of `string` and `number` fields
+- `sortBy`'s `sortFn` must accept `(a: Item, b: Item)` and return `number`
+  - Check out `Array.sort` at MDN for reference
 
 #### Notes on `results()`
 
