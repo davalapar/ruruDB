@@ -163,6 +163,8 @@ export class Query <Item> {
     this.items = this.items.slice(this.queryOffset, this.queryOffset + this.queryLimit);
 
     // Copy our items into a new RESULTS array
+    // This is because we return clones that could be modified in next step
+    // Next step is apply selected & hidden fields
     const results: Item[] = new Array(this.items.length);
     for (let i = 0, l = this.items.length; i < l; i += 1) {
       results[i] = cloneDeep <Item> (this.items[i]);
