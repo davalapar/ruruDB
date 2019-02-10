@@ -15,7 +15,10 @@ const mkdir = promisify(fs.mkdir);
 import cloneDeep from 'lodash/cloneDeep';
 import uuidv4 from 'uuid/v4';
 import ms from 'ms';
-import moment from 'moment';
+
+import tinydate from 'tinydate';
+
+const dateToString = tinydate('{DD}-{MM}-{YY}-{HH}-{mm}-{ss}');
 
 export type Values = string|number|boolean|null|undefined;
 type FilterFn <Item> = (item: Item, id: string) => boolean;
@@ -495,7 +498,9 @@ export class Database {
   private mainFd: number;
   private tempFd: number;
   private oldFd: number;
-  public constructor (filename: string, directory: string, snapshotInterval?: string) {
+  private initialized: boolean;
+  private saveAsFormatted: boolean;
+  public constructor (filename: string, directory: string, saveAsFormatted ?: boolean, snapshotInterval?: string) {
     this.filename = filename;
     this.directory = directory;
     this.main = directory.concat('/', filename, '.rrdb');
@@ -512,15 +517,18 @@ export class Database {
     this.mainFd = 0;
     this.tempFd = 0;
     this.oldFd = 0;
+    this.initialized = false;
+    this.saveAsFormatted = saveAsFormatted === undefined ? false : saveAsFormatted;
   }
   public async initialize () : Promise<void> {
     if (await exists(this.main)) {
-      await this.load();
+      await this.internalLoad();
     } else {
-      await this.save();
+      await this.internalSave();
     }
+    this.initialized = true;
   }
-  private async load () : Promise<void> {
+  private async internalLoad () : Promise<void> {
     this.index.clear();
     const dbDataString: string = await readFile(this.main, 'utf8');
     const data = JSON.parse(dbDataString);
@@ -566,7 +574,7 @@ export class Database {
         const items = table.items;
         data[i] = [label, ids, items];
       }
-      const dataString = JSON.stringify(data, null, 2);
+      const dataString = this.saveAsFormatted ? JSON.stringify(data, null, 2) : JSON.stringify(data);
       await ftruncate(this.tempFd);
       await write(this.tempFd, dataString, 0, 'utf8');
 
@@ -581,10 +589,10 @@ export class Database {
           const snapshot = ''.concat(
             this.directory, '/',
             this.filename, '_',
-            moment(current).format('DDMMMY_hh_mm_ss_A_x'),
+            dateToString(current),
             '.rrdb.old');
           const oldContent = Buffer.alloc(oldStat.size);
-          await read(this.mainFd, oldContent, 0, oldStat.size, 0);
+          await read(this.oldFd, oldContent, 0, oldStat.size, 0);
           await writeFile(snapshot, oldContent, 'utf8');
           this.lastSnapshotTimestamp = current.valueOf();
         }
@@ -620,7 +628,7 @@ export class Database {
       }
     }
   }
-  public async save () : Promise<void> {
+  private async internalSave () : Promise <void> {
     return new Promise((resolve, reject) => {
       this.queue.push([resolve, reject]);
       if (this.saving === false) {
@@ -628,6 +636,12 @@ export class Database {
         process.nextTick(this.internalBeforeSave);
       }
     });
+  }
+  public async save () : Promise<void> {
+    if (this.initialized === false) {
+      throw Error('Cannot call "save" on non-initialized database.');
+    }
+    await this.internalSave();
   }
   public useTable <Item> (label: string) : Table<Item> {
     if (this.index.has(label)) {

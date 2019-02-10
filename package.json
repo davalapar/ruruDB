@@ -1,7 +1,7 @@
 {
   "name": "rurudb",
-  "version": "1.0.1",
-  "description": "db",
+  "version": "2.0.0",
+  "description": "RuruDB is a document database with basic features for prototyping purposes.",
   "main": "./lib/main.js",
   "types": "./lib/main.d.ts",
   "author": "davalapar <davalapar@gmail.com>",
@@ -12,8 +12,8 @@
     "@types/node": "^10.12.19",
     "@types/uuid": "^3.4.4",
     "lodash": "^4.17.11",
-    "moment": "^2.24.0",
     "ms": "^2.1.1",
+    "tinydate": "^1.0.1",
     "uuid": "^3.3.2"
   },
   "devDependencies": {

@@ -75,11 +75,14 @@ export declare class Database {
     private mainFd;
     private tempFd;
     private oldFd;
-    constructor(filename: string, directory: string, snapshotInterval?: string);
+    private initialized;
+    private saveAsFormatted;
+    constructor(filename: string, directory: string, saveAsFormatted?: boolean, snapshotInterval?: string);
     initialize(): Promise<void>;
-    private load;
+    private internalLoad;
     private internalBeforeSave;
     private internalSaveLoop;
+    private internalSave;
     save(): Promise<void>;
     useTable<Item>(label: string): Table<Item>;
 }

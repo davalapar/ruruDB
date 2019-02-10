@@ -53,9 +53,16 @@ await db.initialize();
 
 | Code | Tests | Async? | Database Functions | Returns | Description |
 |:-:|:-:|:-:|:--|:-|:--|
-| `OK` | - | - | `new Database(filename, directory)` | `Database()` | Creates a database instance |
+| `OK` | - | - | `new Database(filename, directory, saveAsFormatted?, snapshotInterval?)` | `Database()` | Creates a database instance |
 | `OK` | - | `Yes` | `await Database().initialize()` | `Promise<void>` | Creates / loads the database file |
 | `OK` | - | - | `Database().useTable <Item> (label)` | `Table()` | Selects / creates a table |
+
+#### Notes on `new Database(filename, directory, saveAsFormatted?, snapshotInterval?)`
+
+- `filename` is a `string`, ie. `'mydb'`
+- `directory` is a `string`, ie. `'./database'`
+- `saveAsFormatted` is an optional boolean, defaults to `false`
+- `snapshotInterval` is an optional string-time format, check out https://www.npmjs.com/package/ms
 
 ## `Table`
 
@@ -80,7 +87,7 @@ const alice = await users.insertItem(users.randomItemId(), {
 
 | Code | Tests | Async? | Table Functions | Returns | Description |
 |:-:|:-:|:-:|:--|:-|:--|
-| `OK` | - | - | `new Table <Item> (database)` | `Table()` | Selects / creates a table |
+| `OK` | - | - | `new Table <Item> (label, database)` | `Table()` | Selects / creates a table |
 | `OK` | - | - | `Table().randomItemId()` | `string` | Returns a uuidv4 string id |
 | `OK` | - | `Yes` | `await Table().insertItem(id, data)` | `Promise<Item>` | Inserts an item into a table |
 | `OK` | - | `Yes` | `await Table().updateItem(modifiedItem)` | `Promise<void>` | Update / overwrite an item |
@@ -89,7 +96,7 @@ const alice = await users.insertItem(users.randomItemId(), {
 | `OK` | - | `Yes` | `await Table().removeItem(item)` | `Promise<void>` | Remove an item |
 | `OK` | - | `Yes` | `await Table().removeItemByID(id)` | `Promise<void>` | Remove an item, by ID |
 | `OK` | - | - | `Table().getItemID(item)` | `string` | Return an item's ID |
-| `OK` | - | - | `Table().getItemByID(, id)` | `Item` | Return an item, from ID |
+| `OK` | - | - | `Table().getItemByID(id)` | `Item` | Return an item, from ID |
 | `OK` | - | `Yes` | `await Table().clearTable()` | `Promise<void>` | Clear a table |
 | `OK` | - | `Yes` | `await Table().removeTable()` | `Promise<void>` | Remove  a table |
 | `OK` | - | - | `Table().createQuery()` | `Query()` | Creates a query against a table |
@@ -181,5 +188,17 @@ import { Transaction } from 'rurudb';
   - Sets `(No JSON.stringify support)`
   - WeakMaps `(No JSON.stringify support)`
   - WeakSets `(No JSON.stringify support)`
+
+## Changelog
+
+- 1.0.0
+  - Feature-complete release
+- 1.0.1
+  - Remove incorrect types module for `moment`
+- 2.0.0
+  - Add internal check to ensure `Database().initialize()` is called
+  - Use `tinydate` instead of `moment`
+  - Add `saveAsFormatted` option
+  - Fix snapshot file corruption (wrong file descriptor referenced)
 
 MIT | @davalapar
