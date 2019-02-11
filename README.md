@@ -55,7 +55,7 @@ await db.initialize();
 |:-:|:-:|:-:|:--|:-|:--|
 | `OK` | - | - | `new Database(filename, directory, saveAsFormatted?, snapshotInterval?)` | `Database()` | Creates a database instance |
 | `OK` | - | `Yes` | `await Database().initialize()` | `Promise<void>` | Creates / loads the database file |
-| `OK` | - | - | `Database().useTable <Item> (label)` | `Table()` | Selects / creates a table |
+| `OK` | - | - | `Database().useTable <Item> (label, mustExist)` | `Table()` | Selects / creates a table |
 
 #### Notes on `new Database(filename, directory, saveAsFormatted?, snapshotInterval?)`
 
@@ -87,7 +87,7 @@ const alice = await users.insertItem(users.randomItemId(), {
 
 | Code | Tests | Async? | Table Functions | Returns | Description |
 |:-:|:-:|:-:|:--|:-|:--|
-| `OK` | - | - | `new Table <Item> (label, database)` | `Table()` | Selects / creates a table |
+| `OK` | - | - | `new Table <Item> (label, database, mustExist)` | `Table()` | Selects / creates a table |
 | `OK` | - | - | `Table().randomItemId()` | `string` | Returns a uuidv4 string id |
 | `OK` | - | `Yes` | `await Table().insertItem(id, data)` | `Promise<Item>` | Inserts an item into a table |
 | `OK` | - | `Yes` | `await Table().updateItem(modifiedItem)` | `Promise<void>` | Update / overwrite an item |
@@ -205,5 +205,8 @@ import { Transaction } from 'rurudb';
 - 2.2.0
   - Fix bug on multiple same-table instances (existing table overwritten, no class instance re-use)
   - Add internal checks in creating new tables & transactions to ensure database is initialized
+- 2.2.1
+  - Prevent multiple `Database().initialize()` calls
+  - Add `mustExist` parameter for `new Table(label, database, mustExist)` and `Database().useTable(label, mustExist)`
 
 MIT | @davalapar

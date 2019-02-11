@@ -349,7 +349,7 @@ export class Table <Item> {
   public ids: string[];
   public items: Item[];
   public index: Map<string, Item>;
-  public constructor (label: string, database: Database) {
+  public constructor (label: string, database: Database, mustExist?: boolean) {
     if (database.initialized === false && database.initializing === false) {
       throw Error('Cannot create table on non-initialized database.');
     }
@@ -360,6 +360,8 @@ export class Table <Item> {
     this.index = new Map();
     if (database.index.has(label)) {
       return database.index.get(label) as Table <Item>;
+    } else if (mustExist === true) {
+      throw Error(`constructor : Table "${label}" with "mustExist=true" not found!`);
     }
     database.index.set(label, this);
   }
@@ -532,12 +534,14 @@ export class Database {
     this.saveAsFormatted = saveAsFormatted === undefined ? false : saveAsFormatted;
   }
   public async initialize () : Promise<void> {
-    if (await exists(this.main)) {
-      await this.internalLoad();
-    } else {
-      await this.internalSave();
+    if (this.initialized === false) {
+      if (await exists(this.main)) {
+        await this.internalLoad();
+      } else {
+        await this.internalSave();
+      }
+      this.initialized = true;
     }
-    this.initialized = true;
   }
   private async internalLoad () : Promise<void> {
     this.index.clear();
@@ -659,8 +663,8 @@ export class Database {
     }
     await this.internalSave();
   }
-  public useTable <Item> (label: string) : Table<Item> {
-    const table = new Table <Item> (label, this);
+  public useTable <Item> (label: string, mustExist: boolean) : Table<Item> {
+    const table = new Table <Item> (label, this, mustExist);
     return table;
   }
 }

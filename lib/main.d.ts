@@ -47,7 +47,7 @@ export declare class Table<Item> {
     ids: string[];
     items: Item[];
     index: Map<string, Item>;
-    constructor(label: string, database: Database);
+    constructor(label: string, database: Database, mustExist?: boolean);
     randomItemId(): string;
     insertItem(id: string, data: Item): Promise<Item>;
     updateItem(modified: Item): Promise<void>;
@@ -85,7 +85,7 @@ export declare class Database {
     private internalSaveLoop;
     private internalSave;
     save(): Promise<void>;
-    useTable<Item>(label: string): Table<Item>;
+    useTable<Item>(label: string, mustExist: boolean): Table<Item>;
 }
 export {};
 //# sourceMappingURL=main.d.ts.map
