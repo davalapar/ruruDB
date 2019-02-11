@@ -512,6 +512,7 @@ export class Database {
   public initializing: boolean;
   public initialized: boolean;
   private saveAsFormatted: boolean;
+  private internalInitializePromise: Promise<void>|undefined;
   public constructor (filename: string, directory: string, saveAsFormatted ?: boolean, snapshotInterval?: string) {
     this.filename = filename;
     this.directory = directory;
@@ -535,12 +536,19 @@ export class Database {
   }
   public async initialize () : Promise<void> {
     if (this.initialized === false) {
-      if (await exists(this.main)) {
-        await this.internalLoad();
-      } else {
-        await this.internalSave();
+      if (this.internalInitializePromise !== undefined) {
+        return this.internalInitializePromise;
       }
-      this.initialized = true;
+      this.internalInitializePromise = (async () : Promise<void> => {
+        if (await exists(this.main)) {
+          await this.internalLoad();
+        } else {
+          await this.internalSave();
+        }
+        this.initialized = true;
+      })();
+      await this.internalInitializePromise;
+      this.internalInitializePromise = undefined;
     }
   }
   private async internalLoad () : Promise<void> {

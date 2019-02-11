@@ -208,5 +208,7 @@ import { Transaction } from 'rurudb';
 - 2.2.1
   - Prevent multiple `Database().initialize()` calls
   - Add `mustExist` parameter for `new Table(label, database, mustExist)` and `Database().useTable(label, mustExist)`
+- 2.2.2
+  - Stack multiple `Database().initialize()` calls into a single resolving promise
 
 MIT | @davalapar

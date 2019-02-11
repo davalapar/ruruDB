@@ -78,6 +78,7 @@ export declare class Database {
     initializing: boolean;
     initialized: boolean;
     private saveAsFormatted;
+    private internalInitializePromise;
     constructor(filename: string, directory: string, saveAsFormatted?: boolean, snapshotInterval?: string);
     initialize(): Promise<void>;
     private internalLoad;
