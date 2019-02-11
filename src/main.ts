@@ -535,8 +535,11 @@ export class Database {
     for (let i = 0, l = data.length; i < l; i += 1) {
       const [label, ids, items] = data[i];
       const table = new Table <unknown> (label, this);
+      table.ids = ids;
+      table.items = items;
       for (let a = 0, b = items.length; a < b; a += 1) {
-        await table.insertItem(ids[a], items[a]);
+        items[a][Tracker] = ids[a];
+        table.index.set(ids[a], items[a]);
       }
     }
   }

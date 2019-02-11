@@ -200,5 +200,7 @@ import { Transaction } from 'rurudb';
   - Use `tinydate` instead of `moment`
   - Add `saveAsFormatted` option
   - Fix snapshot file corruption (wrong file descriptor referenced)
+- 2.1.0
+  - Fix internal loading (file re-save interference)
 
 MIT | @davalapar
