@@ -256,6 +256,9 @@ export class Transaction {
   private removed: [string, string][];
   private database: Database;
   public constructor (database: Database) {
+    if (database.initialized === false) {
+      throw Error('Cannot create transaction on non-initialized database.');
+    }
     this.database = database;
     this.items = [];
     this.removed = [];
@@ -347,11 +350,17 @@ export class Table <Item> {
   public items: Item[];
   public index: Map<string, Item>;
   public constructor (label: string, database: Database) {
+    if (database.initialized === false && database.initializing === false) {
+      throw Error('Cannot create table on non-initialized database.');
+    }
     this.label = label;
     this.database = database;
     this.ids = [];
     this.items = [];
     this.index = new Map();
+    if (database.index.has(label)) {
+      return database.index.get(label) as Table <Item>;
+    }
     database.index.set(label, this);
   }
   public randomItemId () : string {
@@ -498,7 +507,8 @@ export class Database {
   private mainFd: number;
   private tempFd: number;
   private oldFd: number;
-  private initialized: boolean;
+  public initializing: boolean;
+  public initialized: boolean;
   private saveAsFormatted: boolean;
   public constructor (filename: string, directory: string, saveAsFormatted ?: boolean, snapshotInterval?: string) {
     this.filename = filename;
@@ -517,6 +527,7 @@ export class Database {
     this.mainFd = 0;
     this.tempFd = 0;
     this.oldFd = 0;
+    this.initializing = false;
     this.initialized = false;
     this.saveAsFormatted = saveAsFormatted === undefined ? false : saveAsFormatted;
   }
@@ -532,6 +543,7 @@ export class Database {
     this.index.clear();
     const dbDataString: string = await readFile(this.main, 'utf8');
     const data = JSON.parse(dbDataString);
+    this.initializing = true;
     for (let i = 0, l = data.length; i < l; i += 1) {
       const [label, ids, items] = data[i];
       const table = new Table <unknown> (label, this);
@@ -542,6 +554,7 @@ export class Database {
         table.index.set(ids[a], items[a]);
       }
     }
+    this.initializing = false;
   }
   private async internalBeforeSave () : Promise<void> {
     // Ensure directory existence
@@ -647,9 +660,6 @@ export class Database {
     await this.internalSave();
   }
   public useTable <Item> (label: string) : Table<Item> {
-    if (this.index.has(label)) {
-      return this.index.get(label) as Table<Item>;
-    }
     const table = new Table <Item> (label, this);
     return table;
   }

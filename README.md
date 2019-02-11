@@ -202,5 +202,8 @@ import { Transaction } from 'rurudb';
   - Fix snapshot file corruption (wrong file descriptor referenced)
 - 2.1.0
   - Fix internal loading (file re-save interference)
+- 2.2.0
+  - Fix bug on multiple same-table instances (existing table overwritten, no class instance re-use)
+  - Add internal checks in creating new tables & transactions to ensure database is initialized
 
 MIT | @davalapar

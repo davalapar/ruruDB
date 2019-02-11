@@ -75,7 +75,8 @@ export declare class Database {
     private mainFd;
     private tempFd;
     private oldFd;
-    private initialized;
+    initializing: boolean;
+    initialized: boolean;
     private saveAsFormatted;
     constructor(filename: string, directory: string, saveAsFormatted?: boolean, snapshotInterval?: string);
     initialize(): Promise<void>;
