@@ -40,14 +40,14 @@ const compareNumber = (
 ) : number => (descend ? b - a : a - b);
 
 export class Query <Item> {
-  private items: Item[];
+  private selectedItems: Item[];
   private queryOffset: number;
   private queryLimit: number;
   private sorts: ([string, boolean]|[Function])[];
   private selectedFields: string[];
   private hiddenFields: string[];
   public constructor (table: Table<Item>) {
-    this.items = table.items.slice();
+    this.selectedItems = table.items.slice();
     this.queryOffset = 0;
     this.queryLimit = table.items.length;
     this.sorts = [];
@@ -77,57 +77,57 @@ export class Query <Item> {
   }
   public gt (field: string, value: number) : Query <Item> {
     // @ts-ignore
-    this.items = this.items.filter(item => item[field] > value);
+    this.selectedItems = this.selectedItems.filter(item => item[field] > value);
     return this;
   }
   public gte (field: string, value: number) : Query <Item> {
     // @ts-ignore
-    this.items = this.items.filter(item => item[field] >= value);
+    this.selectedItems = this.selectedItems.filter(item => item[field] >= value);
     return this;
   }
   public lt (field: string, value: number) : Query <Item> {
     // @ts-ignore
-    this.items = this.items.filter(item => item[field] < value);
+    this.selectedItems = this.selectedItems.filter(item => item[field] < value);
     return this;
   }
   public lte (field: string, value: number) : Query <Item> {
     // @ts-ignore
-    this.items = this.items.filter(item => item[field] <= value);
+    this.selectedItems = this.selectedItems.filter(item => item[field] <= value);
     return this;
   }
   public eq (field: string, value: number) : Query <Item> {
     // @ts-ignore
-    this.items = this.items.filter(item => item[field] === value);
+    this.selectedItems = this.selectedItems.filter(item => item[field] === value);
     return this;
   }
   public neq (field: string, value: number) : Query <Item> {
     // @ts-ignore
-    this.items = this.items.filter(item => item[field] !== value);
+    this.selectedItems = this.selectedItems.filter(item => item[field] !== value);
     return this;
   }
   public has (field: string, value: Values) : Query <Item> {
     // @ts-ignore
-    this.items = this.items.filter(item => Array.isArray(item[field]) && (item[field]).includes(value));
+    this.selectedItems = this.selectedItems.filter(item => Array.isArray(item[field]) && (item[field]).includes(value));
     return this;
   }
   public hasAnyOf (field: string, values: Values[]) : Query <Item> {
     // @ts-ignore
-    this.items = this.items.filter(item => Array.isArray(item[field]) && values.some(value => (item[field]).includes(value)));
+    this.selectedItems = this.selectedItems.filter(item => Array.isArray(item[field]) && values.some(value => (item[field]).includes(value)));
     return this;
   }
   public hasAllOf (field: string, values: Values[]) : Query <Item> {
     // @ts-ignore
-    this.items = this.items.filter(item => Array.isArray(item[field]) && values.every(value => (item[field]).includes(value)));
+    this.selectedItems = this.selectedItems.filter(item => Array.isArray(item[field]) && values.every(value => (item[field]).includes(value)));
     return this;
   }
   public hasNoneOfAny (field: string, values: Values[]) : Query <Item> {
     // @ts-ignore
-    this.items = this.items.filter(item => Array.isArray(item[field]) && values.some(value => (item[field]).includes(value) === false));
+    this.selectedItems = this.selectedItems.filter(item => Array.isArray(item[field]) && values.some(value => (item[field]).includes(value) === false));
     return this;
   }
   public hasNoneOfAll (field: string, values: Values[]) : Query <Item> {
     // @ts-ignore
-    this.items = this.items.filter(item => Array.isArray(item[field]) && values.every(value => (item[field]).includes(value) === false));
+    this.selectedItems = this.selectedItems.filter(item => Array.isArray(item[field]) && values.every(value => (item[field]).includes(value) === false));
     return this;
   }
   public select (fields: string[]) : Query <Item> {
@@ -140,12 +140,12 @@ export class Query <Item> {
   }
   public filterBy (filterFn: FilterFn<Item>) : Query <Item> {
     // @ts-ignore
-    this.items = this.items.filter(item => filterFn(item, item[Tracker]));
+    this.selectedItems = this.selectedItems.filter(item => filterFn(item, item[Tracker]));
     return this;
   }
-  public results () : Item[] {
+  public results () : [string[], Item[]] {
     if (this.sorts.length > 0) {
-      this.items.sort((a, b) => {
+      this.selectedItems.sort((a, b) => {
         for (let i = 0, l = this.sorts.length; i < l; i += 1) {
           const sort = this.sorts[i];
           if (typeof sort[0] === 'function') {
@@ -154,7 +154,7 @@ export class Query <Item> {
             return sortFn(a, b);
           } else {
             const [field, fieldDescend] = sort;
-            // If field of both items don't match: EXIT LOOP
+            // If field of both selectedItems don't match: EXIT LOOP
             // @ts-ignore
             if (typeof a[field] !== typeof b[field]) {
               break;
@@ -162,7 +162,7 @@ export class Query <Item> {
             // @ts-ignore
             } else if (typeof a[field] !== 'string' || typeof a[field] !== 'number') {
               break;
-            // If value of both items are equal: SKIP SORT
+            // If value of both selectedItems are equal: SKIP SORT
             // @ts-ignore
             } else if (a[field] === b[field]) {
               continue;
@@ -182,54 +182,47 @@ export class Query <Item> {
     }
 
     // Apply our OFFSET & LIMIT filters
-    this.items = this.items.slice(this.queryOffset, this.queryOffset + this.queryLimit);
+    this.selectedItems = this.selectedItems.slice(this.queryOffset, this.queryOffset + this.queryLimit);
 
-    // Copy our items into a new RESULTS array
+    // Copy our selectedItems into a new RESULTS array
     // This is because we return clones that could be modified in next step
     // Next step is apply selected & hidden fields
-    const results: Item[] = new Array(this.items.length);
-    for (let i = 0, l = this.items.length; i < l; i += 1) {
-      results[i] = cloneDeep <Item> (this.items[i]);
-    }
 
-    // For each item in RESULTS
-    for (let i = 0, l = results.length; i < l; i += 1) {
-      const item = results[i];
+    const ids: string[] = new Array(this.selectedItems.length);
+    const items: Item[] = new Array(this.selectedItems.length);
 
-      // For each selected fields
-      for (let a = 0, b = this.selectedFields.length; a < b; a += 1) {
-        const field = this.selectedFields[i];
+    for (let i = 0, l = this.selectedItems.length; i < l; i += 1) {
+      const item = cloneDeep <Item> (this.selectedItems[i]);
+      // @ts-ignore
+      ids[i] = this.selectedItems[i][Tracker];
+      // @ts-ignore
+      item[Tracker] = this.selectedItems[i][Tracker];
 
-        // delete field
-        // @ts-ignore
-        delete item[field];
-      }
-
-      const keys = Object.keys(item);
+      const itemFields = Object.keys(item);
       
       if (this.selectedFields.length > 1) {
           // For each item field
-        for (let a = 0, b = keys.length; a < b; a += 1) {
-          const field = keys[a];
+        for (let a = 0, b = itemFields.length; a < b; a += 1) {
+          const currentField = itemFields[a];
           // If selected field includes field, DELETE
-          if (this.selectedFields.includes(field) === false) {
+          if (this.selectedFields.includes(currentField) === false) {
             // @ts-ignore
-            delete item[field];
+            delete item[currentField];
           }
         }
       }
 
       // For each hidden field, DELETE
       for (let a = 0, b = this.hiddenFields.length; a < b; a += 1) {
-        const field = this.hiddenFields[a];
+        const currentHiddenField = this.hiddenFields[a];
         // @ts-ignore
-        delete item[field];
+        delete item[currentHiddenField];
       }
-      // @ts-ignore
-      item[Tracker] = this.items[i][Tracker];
+
+      items[i] = item;
     }
 
-    return results;
+    return [ids, items];
   }
 }
 

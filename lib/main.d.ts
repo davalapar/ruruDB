@@ -2,7 +2,7 @@ export declare type Values = string | number | boolean | null | undefined;
 declare type FilterFn<Item> = (item: Item, id: string) => boolean;
 declare type SortFn<Item> = (a: Item, b: Item) => number;
 export declare class Query<Item> {
-    private items;
+    private selectedItems;
     private queryOffset;
     private queryLimit;
     private sorts;
@@ -28,7 +28,7 @@ export declare class Query<Item> {
     select(fields: string[]): Query<Item>;
     hide(fields: string[]): Query<Item>;
     filterBy(filterFn: FilterFn<Item>): Query<Item>;
-    results(): Item[];
+    results(): [string[], Item[]];
 }
 export declare class Transaction {
     private items;

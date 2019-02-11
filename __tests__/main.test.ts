@@ -1,5 +1,5 @@
 
-import { Database, Table, Transaction } from '../src/main';
+import { Database, Table, Query, Transaction } from '../src/main';
 
 let db = new Database('test', './temp', false, '1s');
 
@@ -183,4 +183,56 @@ test('t13: abuse test case # 2 ', async () => {
   clearInterval(i);
   await t13.clearTable();
   expect(true).toBe(true);
+});
+
+
+test('t14: basic Query', async () => {
+  const t14 = new Table <User> ('t14', db);
+  await t14.clearTable();
+  const aliceId = t14.randomItemId();
+  const aliceData = { name: 'alice', age: 25 };
+  const alice = await t14.insertItem (aliceId, aliceData);
+  const [ids, items] = new Query(t14).results();
+  expect(ids.length).toBe(1);
+  expect(items.length).toBe(1);
+  expect(items[0]).toStrictEqual(alice);
+  await t14.clearTable();
+});
+
+test('t15: Query eq', async () => {
+  const t15 = new Table <User> ('t15', db);
+  await t15.clearTable();
+  const aliceId = t15.randomItemId();
+  const aliceData = { name: 'alice', age: 25 };
+  const alice = await t15.insertItem (aliceId, aliceData);
+  const bobId = t15.randomItemId();
+  const bobData = { name: 'bob', age: 23 };
+  const bob = await t15.insertItem (bobId, bobData);
+  const [ids, items] = new Query(t15)
+    .eq('age', 23)
+    .results();
+  expect(ids.length).toBe(1);
+  expect(items.length).toBe(1);
+  expect(items[0]).toStrictEqual(bob);
+  console.log({ ids, items });
+  await t15.clearTable();
+});
+
+test('t16: Query eq', async () => {
+  const t16 = new Table <User> ('t16', db);
+  await t16.clearTable();
+  const aliceId = t16.randomItemId();
+  const aliceData = { name: 'alice', age: 25 };
+  const alice = await t16.insertItem (aliceId, aliceData);
+  const bobId = t16.randomItemId();
+  const bobData = { name: 'bob', age: 23 };
+  const bob = await t16.insertItem (bobId, bobData);
+  const [ids, items] = new Query(t16)
+    .neq('age', 25)
+    .results();
+  expect(ids.length).toBe(1);
+  expect(items.length).toBe(1);
+  expect(items[0]).toStrictEqual(bob);
+  console.log({ ids, items });
+  await t16.clearTable();
 });

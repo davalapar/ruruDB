@@ -129,7 +129,7 @@ import { Query } from 'rurudb';
 | `OK` | - | - | `Query().hide(fields)` | `Query()` | Hide fields |
 | `OK` | - | - | `Query().sortBy(sortFn)` | `Query()` | Sort by function, must return a `number` |
 | `OK` | - | - | `Query().filterBy(filterFn)` | `Query()` | Filter by function, must return a `boolean` |
-| `OK` | - | - | `Query().results()` | `Items[]` | Return query results |
+| `OK` | - | - | `Query().results()` | `[string[],Items[]]` | Return query results |
 
 #### Notes on `filterBy(filterFn)`
 
@@ -210,5 +210,8 @@ import { Transaction } from 'rurudb';
   - Add `mustExist` parameter for `new Table(label, database, mustExist)` and `Database().useTable(label, mustExist)`
 - 2.2.2
   - Stack multiple `Database().initialize()` calls into a single resolving promise
+- 3.0.0
+  - Rewrite `Query` to return `[ids, item]` format
+  - Add some basic tests for `Query`
 
 MIT | @davalapar

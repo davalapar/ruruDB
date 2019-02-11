@@ -1,6 +1,6 @@
 {
   "name": "rurudb",
-  "version": "2.2.2",
+  "version": "3.0.0",
   "description": "RuruDB is a document database with basic features for prototyping purposes.",
   "main": "./lib/main.js",
   "types": "./lib/main.d.ts",
