@@ -1,51 +1,79 @@
-export declare type Values = string | number | boolean | null | undefined;
-declare type FilterFn<Item> = (item: Item, id: string) => boolean;
-declare type SortFn<Item> = (a: Item, b: Item) => number;
-export declare class Query<Item> {
-    private selectedItems;
+export declare type AcceptedValues = string | number | boolean | null | undefined;
+export interface Item {
+    readonly id?: string;
+    readonly table?: string;
+    [key: string]: AcceptedValues | (AcceptedValues)[];
+}
+export declare class Query {
+    private resultItems;
     private queryOffset;
     private queryLimit;
     private sorts;
     private selectedFields;
     private hiddenFields;
-    constructor(table: Table<Item>);
-    offset(value: number): Query<Item>;
-    limit(value: number): Query<Item>;
-    ascend(field: string): Query<Item>;
-    descend(field: string): Query<Item>;
-    sortBy(sortFn: SortFn<Item>): Query<Item>;
-    gt(field: string, value: number): Query<Item>;
-    gte(field: string, value: number): Query<Item>;
-    lt(field: string, value: number): Query<Item>;
-    lte(field: string, value: number): Query<Item>;
-    eq(field: string, value: number): Query<Item>;
-    neq(field: string, value: number): Query<Item>;
-    has(field: string, value: Values): Query<Item>;
-    hasAnyOf(field: string, values: Values[]): Query<Item>;
-    hasAllOf(field: string, values: Values[]): Query<Item>;
-    hasNoneOfAny(field: string, values: Values[]): Query<Item>;
-    hasNoneOfAll(field: string, values: Values[]): Query<Item>;
-    select(fields: string[]): Query<Item>;
-    hide(fields: string[]): Query<Item>;
-    filterBy(filterFn: FilterFn<Item>): Query<Item>;
+    constructor(table: Table);
+    offset(value: number): Query;
+    limit(value: number): Query;
+    ascend(field: string): Query;
+    descend(field: string): Query;
+    sortBy(sortFn: (a: Item, b: Item) => number): Query;
+    gt(field: string, value: number): Query;
+    gte(field: string, value: number): Query;
+    lt(field: string, value: number): Query;
+    lte(field: string, value: number): Query;
+    eq(field: string, value: number): Query;
+    neq(field: string, value: number): Query;
+    has(field: string, value: (AcceptedValues)): Query;
+    hasAnyOf(field: string, values: (AcceptedValues)[]): Query;
+    hasAllOf(field: string, values: (AcceptedValues)[]): Query;
+    hasNoneOfAny(field: string, values: (AcceptedValues)[]): Query;
+    hasNoneOfAll(field: string, values: (AcceptedValues)[]): Query;
+    select(fields: string[]): Query;
+    hide(fields: string[]): Query;
+    filterBy(filterFn: (item: Item) => boolean): Query;
     results(): [string[], Item[]];
 }
-export declare class Transaction {
-    private items;
-    private removed;
-    private database;
-    constructor(database: Database);
-    fetchItem<Item>(table: Table<Item>, id: string): Item;
-    createItem<Item>(table: Table<Item>, id: string, item: Item): Item;
-    removeItem<Item>(item: Item): void;
-    removeItemById<Item>(table: Table<Item>, id: string): void;
-    commit(): Promise<void>;
+export declare class TransactionTable {
+    label: string;
+    realTable: Table;
+    index: Map<string, Item>;
+    private removedIds;
+    constructor(label: string, table: Table);
+    randomItemId(): string;
+    insertItem(id: string, data: Item): Item;
+    fetchItem(id: string): Item;
+    fetchItemId(item: Item): string;
+    updateItem(modified: Item): void;
+    updateItemById(id: string, data: Item): Item;
+    mergeItemById(id: string, data: Item): Item;
+    removeItem(item: Item): void;
+    removeItemById(id: string): void;
 }
-export declare class Table<Item> {
+export declare class PseudoTable {
+    label: string;
+    index: Map<string, Item>;
+    private refTable;
+    private removedItemIds;
+    constructor(label: string, refTable: Table);
+    randomItemId(): string;
+    insertItem(id: string, data: Item): Item;
+    updateItem(modified: Item): void;
+    updateItemById(id: string, data: Item): Item;
+    mergeItemById(id: string, data: Item): Item;
+    removeItem(item: Item): void;
+    removeItemById(id: string): void;
+    fetchItem(id: string): Item;
+}
+declare type fetchTable = (label: string) => PseudoTable;
+export declare class Transaction {
+    private database;
+    private index;
+    constructor(database: Database);
+    exec(execFn: (fetchTable: fetchTable) => void): Promise<void>;
+}
+export declare class Table {
     label: string;
     private database;
-    ids: string[];
-    items: Item[];
     index: Map<string, Item>;
     constructor(label: string, database: Database, mustExist?: boolean);
     randomItemId(): string;
@@ -55,11 +83,10 @@ export declare class Table<Item> {
     mergeItemById(id: string, data: Item): Promise<Item>;
     removeItem(item: Item): Promise<void>;
     removeItemById(id: string): Promise<void>;
-    getItemId(item: Item): string;
-    getItemById(id: string): Item;
+    fetchItem(id: string): Item;
     clearTable(): Promise<void>;
     removeTable(): Promise<void>;
-    createQuery(): Query<Item>;
+    createQuery(): Query;
 }
 export declare class Database {
     private filename;
@@ -69,7 +96,7 @@ export declare class Database {
     private old;
     private snapshotInterval;
     private lastSnapshotTimestamp;
-    index: Map<string, Table<unknown>>;
+    index: Map<string, Table>;
     private saving;
     private queue;
     private mainFd;
@@ -86,7 +113,7 @@ export declare class Database {
     private internalSaveLoop;
     private internalSave;
     save(): Promise<void>;
-    useTable<Item>(label: string, mustExist: boolean): Table<Item>;
+    useTable(label: string, mustExist: boolean): Table;
 }
 export {};
 //# sourceMappingURL=main.d.ts.map

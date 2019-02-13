@@ -25,7 +25,6 @@ test('t2: insertItem, randomItemId', async () => {
   const aliceId = t2.randomItemId();
   const aliceData = { name: 'alice', age: 25 };
   await t2.insertItem (aliceId, aliceData);
-  expect(t2.ids.length).toBe(1);
   expect(t2.index.has(aliceId)).toBe(true);
   expect(t2.insertItem(aliceId, aliceData)).rejects.toThrow();
   await t2.clearTable();
@@ -80,8 +79,6 @@ test('t6: removeItem ', async () => {
   const aliceData = { name: 'alice', age: 25 };
   const alice = await t6.insertItem (aliceId, aliceData);
   await t6.removeItem(alice);
-  expect(t6.ids.length).toBe(0);
-  expect(t6.items.length).toBe(0);
   expect(t6.index.size).toBe(0);
   await t6.clearTable();
 });
@@ -93,30 +90,28 @@ test('t7: removeItemById ', async () => {
   const aliceData = { name: 'alice', age: 25 };
   await t7.insertItem (aliceId, aliceData);
   await t7.removeItemById(aliceId);
-  expect(t7.ids.length).toBe(0);
-  expect(t7.items.length).toBe(0);
   expect(t7.index.size).toBe(0);
   await t7.clearTable();
 });
 
-test('t8: getItemId ', async () => {
+test('t8: fetchItemId ', async () => {
   const t8 = new Table <User> ('t8', db);
   await t8.clearTable();
   const aliceId = t8.randomItemId();
   const aliceData = { name: 'alice', age: 25 };
   const alice = await t8.insertItem (aliceId, aliceData);
-  const id = t8.getItemId(alice);
+  const id = t8.fetchItemId(alice);
   expect(aliceId).toBe(id);
   await t8.clearTable();
 });
 
-test('t9: getItemById ', async () => {
+test('t9: fetchItem ', async () => {
   const t9 = new Table <User> ('t9', db);
   await t9.clearTable();
   const aliceId = t9.randomItemId();
   const aliceData = { name: 'alice', age: 25 };
   const alice = await t9.insertItem (aliceId, aliceData);
-  const item = t9.getItemById(aliceId);
+  const item = t9.fetchItem(aliceId);
   expect(alice).toStrictEqual(item);
   await t9.clearTable();
 });
@@ -134,17 +129,25 @@ test('t11: Transaction ', async () => {
   await t11.clearTable();
   const aliceId = t11.randomItemId();
   const aliceData = { name: 'alice', age: 25 };
-  await t11.insertItem (aliceId, aliceData);
-  await t11.insertItem ('cathy-id', { name: 'cath' });
-  const t = new Transaction(db);
-  const alice = t.fetchItem(t11, aliceId);
-  expect(alice.name).toBe('alice');
-  expect(alice.age).toBe(25);
-  const bob = t.createItem(t11, 'bob-id', { name: 'bob' });
-  t.removeItemById(t11, 'cathy-id');
-  t.removeItem(bob);
-  await t.commit();
-  expect(t11.ids.length).toBe(1);
+  const bobId = t11.randomItemId();
+  const bobData = { name: 'bob', age: 26 };
+  const cathyId = t11.randomItemId();
+  const cathyData = { name: 'cathy', age: 27 };
+  const originalAlice = await t11.insertItem (aliceId, aliceData);
+  await t11.insertItem (cathyId, cathyData);
+  await new Transaction(db)
+    .exec((t) => {
+      const fetchedAlice = t.fetchItem(t11, aliceId);
+      expect(originalAlice.age).toBe(fetchedAlice.age);
+      expect(originalAlice.name).toBe(fetchedAlice.name);
+      fetchedAlice.age = 23;
+      const createdBob = t.insertItem(t11, bobId, bobData);
+      t.removeItemById(t11, cathyId);
+      t.removeItem(createdBob);
+    });
+  const newAlice = t11.fetchItem(aliceId);
+  expect(newAlice.age).toBe(23);
+  expect(t11.index.size).toBe(1);
   await t11.clearTable();
 });
 
@@ -204,7 +207,7 @@ test('t15: Query eq', async () => {
   await t15.clearTable();
   const aliceId = t15.randomItemId();
   const aliceData = { name: 'alice', age: 25 };
-  const alice = await t15.insertItem (aliceId, aliceData);
+  await t15.insertItem (aliceId, aliceData);
   const bobId = t15.randomItemId();
   const bobData = { name: 'bob', age: 23 };
   const bob = await t15.insertItem (bobId, bobData);
@@ -214,7 +217,7 @@ test('t15: Query eq', async () => {
   expect(ids.length).toBe(1);
   expect(items.length).toBe(1);
   expect(items[0]).toStrictEqual(bob);
-  console.log({ ids, items });
+  // console.log({ ids, items });
   await t15.clearTable();
 });
 
@@ -223,7 +226,7 @@ test('t16: Query eq', async () => {
   await t16.clearTable();
   const aliceId = t16.randomItemId();
   const aliceData = { name: 'alice', age: 25 };
-  const alice = await t16.insertItem (aliceId, aliceData);
+  await t16.insertItem (aliceId, aliceData);
   const bobId = t16.randomItemId();
   const bobData = { name: 'bob', age: 23 };
   const bob = await t16.insertItem (bobId, bobData);
@@ -233,6 +236,6 @@ test('t16: Query eq', async () => {
   expect(ids.length).toBe(1);
   expect(items.length).toBe(1);
   expect(items[0]).toStrictEqual(bob);
-  console.log({ ids, items });
+  // console.log({ ids, items });
   await t16.clearTable();
 });
