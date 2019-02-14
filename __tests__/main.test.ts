@@ -1,9 +1,9 @@
 
-import { Database, Table, Query, Transaction } from '../src/main';
+import { Item, Database, Table, Query, Transaction } from '../src/main';
 
 let db = new Database('test', './temp', false, '1s');
 
-interface User {
+interface User extends Item {
   name?: string;
   age?: number;
   address?: string;
@@ -20,7 +20,7 @@ test('t1: table label', async () => {
 });
 
 test('t2: insertItem, randomItemId', async () => {
-  const t2 = new Table <User> ('t2', db);
+  const t2 = new Table ('t2', db);
   await t2.clearTable();
   const aliceId = t2.randomItemId();
   const aliceData = { name: 'alice', age: 25 };
@@ -31,7 +31,7 @@ test('t2: insertItem, randomItemId', async () => {
 });
 
 test('t3: updateItem', async () => {
-  const t3 = new Table <User> ('t3', db);
+  const t3 = new Table ('t3', db);
   await t3.clearTable();
   const aliceId = t3.randomItemId();
   const aliceData = { name: 'alice', age: 25 };
@@ -48,7 +48,7 @@ test('t3: updateItem', async () => {
 });
 
 test('t4: updateItemById', async () => {
-  const t4 = new Table <User> ('t4', db);
+  const t4 = new Table ('t4', db);
   await t4.clearTable();
   const aliceId = t4.randomItemId();
   const aliceData = { name: 'alice', age: 25 };
@@ -62,7 +62,7 @@ test('t4: updateItemById', async () => {
 });
 
 test('t5: mergeItemById', async () => {
-  const t5 = new Table <User> ('t5', db);
+  const t5 = new Table ('t5', db);
   await t5.clearTable();
   const aliceId = t5.randomItemId();
   const aliceData = { name: 'alice', age: 25 };
@@ -73,7 +73,7 @@ test('t5: mergeItemById', async () => {
 });
 
 test('t6: removeItem ', async () => {
-  const t6 = new Table <User> ('t6', db);
+  const t6 = new Table ('t6', db);
   await t6.clearTable();
   const aliceId = t6.randomItemId();
   const aliceData = { name: 'alice', age: 25 };
@@ -84,7 +84,7 @@ test('t6: removeItem ', async () => {
 });
 
 test('t7: removeItemById ', async () => {
-  const t7 = new Table <User> ('t7', db);
+  const t7 = new Table ('t7', db);
   await t7.clearTable();
   const aliceId = t7.randomItemId();
   const aliceData = { name: 'alice', age: 25 };
@@ -95,18 +95,17 @@ test('t7: removeItemById ', async () => {
 });
 
 test('t8: fetchItemId ', async () => {
-  const t8 = new Table <User> ('t8', db);
+  const t8 = new Table ('t8', db);
   await t8.clearTable();
   const aliceId = t8.randomItemId();
   const aliceData = { name: 'alice', age: 25 };
   const alice = await t8.insertItem (aliceId, aliceData);
-  const id = t8.fetchItemId(alice);
-  expect(aliceId).toBe(id);
+  expect(alice.id).toBe(aliceId);
   await t8.clearTable();
 });
 
 test('t9: fetchItem ', async () => {
-  const t9 = new Table <User> ('t9', db);
+  const t9 = new Table ('t9', db);
   await t9.clearTable();
   const aliceId = t9.randomItemId();
   const aliceData = { name: 'alice', age: 25 };
@@ -117,7 +116,7 @@ test('t9: fetchItem ', async () => {
 });
 
 test('t10: removeTable ', async () => {
-  const t10 = new Table <User> ('t10', db);
+  const t10 = new Table ('t10', db);
   await t10.clearTable();
   t10.removeTable();
   expect(db.index.has('t10')).toStrictEqual(false);
@@ -125,7 +124,7 @@ test('t10: removeTable ', async () => {
 });
 
 test('t11: Transaction ', async () => {
-  const t11 = new Table <User> ('t11', db);
+  const t11 = new Table ('t11', db);
   await t11.clearTable();
   const aliceId = t11.randomItemId();
   const aliceData = { name: 'alice', age: 25 };
@@ -136,17 +135,19 @@ test('t11: Transaction ', async () => {
   const originalAlice = await t11.insertItem (aliceId, aliceData);
   await t11.insertItem (cathyId, cathyData);
   await new Transaction(db)
-    .exec((t) => {
-      const fetchedAlice = t.fetchItem(t11, aliceId);
+    .exec((fetchTable) => {
+      const users = fetchTable('t11');
+      const fetchedAlice = users.fetchItem(aliceId);
       expect(originalAlice.age).toBe(fetchedAlice.age);
       expect(originalAlice.name).toBe(fetchedAlice.name);
       fetchedAlice.age = 23;
-      const createdBob = t.insertItem(t11, bobId, bobData);
-      t.removeItemById(t11, cathyId);
-      t.removeItem(createdBob);
+      users.updateItem(fetchedAlice);
+      const createdBob = users.insertItem(bobId, bobData);
+      users.removeItemById(cathyId);
+      users.removeItem(createdBob);
     });
-  const newAlice = t11.fetchItem(aliceId);
-  expect(newAlice.age).toBe(23);
+  const latestAlice = t11.fetchItem(aliceId);
+  expect(latestAlice.age).toBe(23);
   expect(t11.index.size).toBe(1);
   await t11.clearTable();
 });
@@ -154,7 +155,7 @@ test('t11: Transaction ', async () => {
 const sleep = (timeout: number) : Promise<void> => new Promise(resolve => setTimeout(resolve, timeout));
 
 test('t12: abuse test case # 1 ', async () => {
-  const t12 = new Table <User> ('t12', db);
+  const t12 = new Table ('t12', db);
   const i = setInterval(() => t12.insertItem (t12.randomItemId(), { name: 'cath' }), 0);
   await sleep(250);
   clearInterval(i);
@@ -172,7 +173,7 @@ test('t13: abuse test case # 2 ', async () => {
     roles: string[];
     numbers: number[];
   }
-  const t13 = new Table <CustomItem> ('t13', db);
+  const t13 = new Table ('t13', db);
   const i = setInterval(() => t13.insertItem (t13.randomItemId(), {
     str: 'something',
     number: 123,
@@ -190,7 +191,7 @@ test('t13: abuse test case # 2 ', async () => {
 
 
 test('t14: basic Query', async () => {
-  const t14 = new Table <User> ('t14', db);
+  const t14 = new Table ('t14', db);
   await t14.clearTable();
   const aliceId = t14.randomItemId();
   const aliceData = { name: 'alice', age: 25 };
@@ -203,7 +204,7 @@ test('t14: basic Query', async () => {
 });
 
 test('t15: Query eq', async () => {
-  const t15 = new Table <User> ('t15', db);
+  const t15 = new Table ('t15', db);
   await t15.clearTable();
   const aliceId = t15.randomItemId();
   const aliceData = { name: 'alice', age: 25 };
@@ -222,7 +223,7 @@ test('t15: Query eq', async () => {
 });
 
 test('t16: Query eq', async () => {
-  const t16 = new Table <User> ('t16', db);
+  const t16 = new Table ('t16', db);
   await t16.clearTable();
   const aliceId = t16.randomItemId();
   const aliceData = { name: 'alice', age: 25 };

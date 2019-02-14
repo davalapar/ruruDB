@@ -17,14 +17,6 @@ RuruDB is a document database with basic features for prototyping purposes.
   - Data is finally written to `*.rrdb`
 - Supports `string`, `number`, `boolean`, `null`, `undefined`, `Object` & `Array` properties
 - Readable output, uses `JSON.stringify()` for encoding
-- Supports custom `Item` interfaces
-  ```ts
-  interface User {
-    name: string;
-    age: number;
-  }
-  const users = new Table <User> (db);
-  ```
 
 ## Planned Future Improvements
 
@@ -95,8 +87,7 @@ const alice = await users.insertItem(users.randomItemId(), {
 | `OK` | - | `Yes` | `await Table().mergeItemByID(id, data)` | `Promise<Item>` | Merges supplied data to an item, by ID |
 | `OK` | - | `Yes` | `await Table().removeItem(item)` | `Promise<void>` | Remove an item |
 | `OK` | - | `Yes` | `await Table().removeItemByID(id)` | `Promise<void>` | Remove an item, by ID |
-| `OK` | - | - | `Table().getItemID(item)` | `string` | Return an item's ID |
-| `OK` | - | - | `Table().getItemByID(id)` | `Item` | Return an item, from ID |
+| `OK` | - | - | `Table().fetchItem(id)` | `Item` | Return an item, from ID |
 | `OK` | - | `Yes` | `await Table().clearTable()` | `Promise<void>` | Clear a table |
 | `OK` | - | `Yes` | `await Table().removeTable()` | `Promise<void>` | Remove  a table |
 | `OK` | - | - | `Table().createQuery()` | `Query()` | Creates a query against a table |
@@ -157,11 +148,7 @@ import { Transaction } from 'rurudb';
 | Code | Tests | Async? | Functions | Returns | Description |
 |:-:|:-:|:-:|:--|:-|:--|
 | `OK` | - | - | `new Transaction(database)` | `Transaction()` | Creates a transaction against a database |
-| `OK` | - | - | `Transaction().fetchItem <Item> (table, id)` | `Item` | Fetches an item from a table |
-| `OK` | - | - | `Transaction().createItem <Item> (table, id, data)` | `Item` | Creates an item for a table |
-| `OK` | - | - | `Transaction().removeItem <Item> (item)` | `void` | Removes an item from a table |
-| `OK` | - | - | `Transaction().removeItemById(id)` | `void` | Removes an item by id from a table |
-| `OK` | - | `Yes` | `await Transaction().commit()` | `Promise<void>` | Commits all changes made in this Transaction |
+| `OK` | - | `Yes` | `await Transaction().exec(execFn)` | `Promise<void>` | Executes and commits this Transaction |
 
 ## Item Interface Support
 
@@ -213,5 +200,17 @@ import { Transaction } from 'rurudb';
 - 3.0.0
   - Rewrite `Query` to return `[ids, item]` format
   - Add some basic tests for `Query`
+- 4.0.0
+  - Remove usage of Symbols and `// @ts-ignore` lines
+  - Change `Table().getItemById(id)` to `Table().fetchItem(id)`
+  - Remove `Table().getItemId(id)`
+  - Rewrite `Transaction`
+  - Export `Item` interface
+  - Implement database file recovery / loading
+    - If the directory exists, check for files
+    - If `*.rrdb` exists, load it
+    - Otherwise if `*.rrdb.temp` exists, load it
+    - Otherwise if `*.rrdb.old` exists, load it
+    - Otherwise optionally create directory, and just save it as empty db
 
 MIT | @davalapar

@@ -1,10 +1,10 @@
 
-import fs from 'fs';
+import fs, { stat } from 'fs';
 import { promisify } from 'util';
 
 const writeFile = promisify(fs.writeFile);
-const readFile = promisify(fs.readFile);
 const open = promisify(fs.open);
+const close = promisify(fs.close);
 const ftruncate = promisify(fs.ftruncate);
 const write = promisify(fs.write);
 const read = promisify(fs.read);
@@ -138,10 +138,10 @@ export class Query {
         for (let i = 0, l = this.sorts.length; i < l; i += 1) {
           const sort = this.sorts[i];
           if (typeof sort[0] === 'function') {
-            const [sortFn] = sort;            
+            const [sortFn] = sort as [Function];            
             return sortFn(a, b);
           } else {
-            const [field, fieldDescend] = sort;
+            const [field, fieldDescend] = sort as [string, boolean];
             if (typeof a[field] !== typeof b[field]) { // If field of both resultItems don't match: EXIT LOOP
               break;
             } else if (typeof a[field] !== 'string' || typeof a[field] !== 'number') { // If both item fields are't "string" or "number": EXIT LOOP
@@ -187,197 +187,11 @@ export class Query {
   }
 }
 
-/**
- * Transactions:
- * - May involve multiple items
- * - May involve multiple tables
- * - Changes are committed at once
- * 
- * At Redis:
- * - Item snapshots are captured
- * - Changes are recorded
- * - If items were modified in database, aborts
- * - Developer can also abort
- * - If items were not modified, commits
- */
-
- /**
-  * @todo check if items still exist
-  * @todo check if items were modified
-  */
-
-/**
- * @todo
- * - Pure function must not be async approach
- * 
- * - insertedItems: Item[]
- * - updatedItems: Item[]
- * - removedIds: [string, string][]
- *   - for each [table, id] pair, remove item
- * - removedItems: Item[]
- *   - for each Item, remove from their table
- * 
- * - randomItemId (table)
- *   - id must not exist in table
- *   - id must not exist in inserted items
- *   - 
- * - fetchItem (table, id) : Item
- *   - id must exist in table
- * - insertItem (table, id, data) : Item
- * - updateItem (item) : Item
- * - updateItemById (table, id, data) : Item
- * - mergeItemById (table, id, data) : Item
- * - removeItem (item) : void
- *   - item id must exist
- * - removeItemById (table, id) : void
- *   - id must exist
- */
-
-export class TransactionTable  {
-  public label: string;
-  public realTable: Table;
-  public index: Map<string, Item>;
-  private removedIds: Set<string>;
-  public constructor (label: string, table: Table) {
-    this.label = label;
-    this.realTable = table;
-    this.index = new Map();
-    this.removedIds = new Set();
-  }
-  public randomItemId () : string {
-    let id = uuidv4();
-    while (this.index.has(id) || this.realTable.index.has(id)) {
-      id = uuidv4();
-    }
-    return id;
-  }
-  public insertItem(id: string, data : Item) : Item {
-    if (this.index.has(id) || this.realTable.index.has(id)) {
-      throw Error('Invalid "Item", "id" already exists in table');
-    }
-    if (this.removedIds.has(id)) {
-      throw Error('Invalid "Item", "id" already exists in items to be removed in table');
-    }
-    const item = cloneDeep  (data);
-    
-    item[Tracker] = id;
-    this.index.set(id, item);
-    const copy = cloneDeep  (item);
-    
-    copy[Tracker] = id;
-    return copy;
-  }
-  public fetchItem (id: string) : Item {
-    if (this.realTable.index.has(id) === false) {
-      throw Error('fetchItem : Invalid "Item", "id" not found in table');
-    }
-    if (this.removedIds.has(id)) {
-      throw Error('fetchItem : Invalid "Item", "id" already exists in items to be removed in table');
-    }
-    if (this.index.has(id)) {
-      const item = this.index.get(id);
-      const copy = cloneDeep  (item as Item);
-      
-      copy[Tracker] = id;
-      return copy;
-    } else {
-      const realItem = this.realTable.index.get(id);
-      const item = cloneDeep  (realItem as Item);
-      
-      item[Tracker] = id;
-      this.index.set(id, item);
-      const copy = cloneDeep  (item as Item);
-      
-      copy[Tracker] = id;
-      return copy;
-    }
-  }
-  public fetchItemId (item: Item) : string {
-    
-    const id: string = item[Tracker];
-    if (this.index.has(id) === false) {
-      throw Error('Invalid "Item", "id" not found in table');
-    }
-    return id;
-  }
-  public updateItem (modified: Item) : void {
-    
-    const id: string = modified[Tracker];
-    if (this.index.has(id) === false) {
-      throw Error('Invalid "Item", "id" not found in table');
-    }
-    const item: Item = cloneDeep  (modified);
-    
-    item[Tracker] = id;
-    this.index.set(id, item);
-  }
-  public updateItemById (id: string, data: Item) : Item {
-    if (this.index.has(id) === false) {
-      throw Error('Invalid "Item", "id" not found in table');
-    }
-    const item = cloneDeep  (data);
-    
-    item[Tracker] = id;
-    this.index.set(id, item);
-    const copy = cloneDeep  (item);
-    
-    copy[Tracker] = id;
-    return copy;
-  }
-  public mergeItemById (id: string, data: Item) : Item {
-    if (this.index.has(id) === false) {
-      throw Error('Invalid "Item", "id" not found in table');
-    }
-    const existing = this.index.get(id);
-    const item = {
-      ...existing,
-      ...cloneDeep (data)
-    };
-    
-    item[Tracker] = id;
-    const copy = cloneDeep  (item);
-    
-    copy[Tracker] = id;
-    return copy;
-  }
-  public removeItem (item: Item) : void {
-    
-    const id: string = item[Tracker];
-    if (id === undefined) throw Error('Invild "Item", "id" Symbol is undefined.');
-    if (this.index.has(id)) {
-      // inserted
-      if (this.realTable.index.has(id)) {
-        // fetched
-        this.removedIds.add(id);
-      }
-      this.index.delete(id);
-      
-      delete item[Tracker];
-      return;
-    }
-    throw Error('Invalid "Item", "id" not found in table');
-  }
-  public removeItemById (id: string) : void {
-    if (this.realTable.index.has(id)) {
-      this.removedIds.add(id);
-      return;
-    }
-    if (this.index.has(id)) {
-      this.index.delete(id);
-      return;
-    }
-    throw Error('Invalid "Item", "id" not found in table');
-  }
-}
-
-
-
-
 export class PseudoTable {
   public label: string;
   public index: Map<string, Item>;
-  private refTable: Table;
-  private removedItemIds: Set<string>;
+  public refTable: Table;
+  public removedItemIds: Set<string>;
   public constructor (label: string, refTable: Table) {
     this.label = label;
     this.refTable = refTable;
@@ -438,7 +252,7 @@ export class PseudoTable {
     if (this.index.has(id) === false) {
       throw Error('mergeItemById : Invalid "item", "id" must exist in table');
     }
-    const existing = this.index.get(id);
+    const existing = this.index.get(id) || this.refTable.index.get(id);
     const item = {
       id,
       ...existing,
@@ -451,19 +265,35 @@ export class PseudoTable {
     if (item.id === undefined) {
       throw Error('removeItem : Invalid "item", "id" must not be "undefined"');
     }
+    if (this.index.has(item.id)) {
+      this.index.delete(item.id);
+      if (this.refTable.index.has(item.id)) {
+        if (this.removedItemIds.has(item.id) === false) {
+          this.removedItemIds.add(item.id);
+        }
+      }
+      return;
+    }
     if (this.index.has(item.id) === false) {
       throw Error('removeItem : Invalid "item", "id" must exist in table');
     }
-    this.index.delete(item.id);
   }
   public removeItemById (id: string) : void {
     if (id === undefined) {
       throw Error('removeItemById : Invalid "id", "id" must not be "undefined"');
     }
-    if (this.index.has(id) === false) {
+    if (this.index.has(id) || this.refTable.index.has(id)) {
+      if (this.index.has(id)) {
+        this.index.delete(id);
+      }
+      if (this.refTable.index.has(id)) {
+        if (this.removedItemIds.has(id) === false) {
+          this.removedItemIds.add(id);
+        }
+      }
+    } else if (this.index.has(id) === false) {
       throw Error('removeItemById : Invalid "id", "id" must exist in table');
     }
-    this.index.delete(id);
   }
   public fetchItem (id: string) : Item {
     if (id === undefined) {
@@ -509,9 +339,28 @@ export class Transaction {
       if (this.database.index.has(label) === false) {
         throw Error('fetchTable : Invalid "label", table not found.');
       }
-      return new PseudoTable(label, this.database.index.get(label) as Table);
+      if (this.index.has(label)) {
+        return this.index.get(label) as PseudoTable;
+      }
+      const pseudoTable = new PseudoTable(label, this.database.index.get(label) as Table);
+      this.index.set(label, pseudoTable);
+      return pseudoTable;
     };
     execFn(fetchTable);
+    const pseudoTables = Array.from(this.index.values());
+    for (let i = 0, l = pseudoTables.length; i < l; i += 1) {
+      const pseudoTable = pseudoTables[i];
+      const { refTable, removedItemIds } = pseudoTable;
+      const updateEntries = Array.from(pseudoTable.index.entries());
+      for (let a = 0, b = updateEntries.length; a < b; a += 1) {
+        const [id, item] = updateEntries[a];
+        refTable.index.set(id, item);
+      }
+      const removeValues = Array.from(removedItemIds.values())
+      for (let a = 0, b = removeValues.length; a < b; a += 1) {
+        refTable.index.delete(removeValues[a]);
+      }
+    }
     await this.database.save();
   }
 }
@@ -688,11 +537,7 @@ export class Database {
         return this.internalInitializePromise;
       }
       this.internalInitializePromise = (async () : Promise<void> => {
-        if (await exists(this.main)) {
-          await this.internalLoad();
-        } else {
-          await this.internalSave();
-        }
+        await this.internalLoad();
         this.initialized = true;
       })();
       await this.internalInitializePromise;
@@ -701,17 +546,71 @@ export class Database {
   }
   private async internalLoad () : Promise<void> {
     this.index.clear();
-    const dbDataString: string = await readFile(this.main, 'utf8');
-    const data = JSON.parse(dbDataString);
-    this.initializing = true;
-    for (let i = 0, l = data.length; i < l; i += 1) {
-      const [label, ids, items] = data[i];
-      const table = new Table (label, this);
-      for (let a = 0, b = items.length; a < b; a += 1) {
-        table.index.set(ids[a], items[a]);
+    let dbDataString = '';
+    if (await exists(this.directory)) {
+      if (await exists(this.main)) {
+        this.mainFd = await open(this.main, 'r');
+        const mainStat = await fstat(this.mainFd);
+        if (mainStat.size > 0) {
+          console.log(`internalLoad : Loading from ${this.main}`);
+          const mainContent = Buffer.alloc(mainStat.size);
+          await read(this.mainFd, mainContent, 0, mainStat.size, 0);
+          dbDataString = mainContent.toString();
+        } else {
+          console.log(`internalLoad : ${this.main} empty, possibly corrupted.`);
+        }
+        await close(this.mainFd);
+      } else {
+        console.log(`internalLoad : ${this.main} not found.`);
+        if (await exists(this.temp)) {
+          this.tempFd = await open(this.temp, 'r');
+          const tempStat = await fstat(this.tempFd);
+          if (tempStat.size > 0) {
+            console.log(`internalLoad : Loading from ${this.temp}`);
+            const tempContent = Buffer.alloc(tempStat.size);
+            await read(this.tempFd, tempContent, 0, tempStat.size, 0);
+            dbDataString = tempContent.toString();
+          } else {
+            console.log(`internalLoad : ${this.temp} empty, possibly corrupted.`);
+          }
+          await close(this.tempFd);
+        } else {
+          console.log(`internalLoad : ${this.temp} not found.`);
+          if (await exists(this.old)) {
+            this.oldFd = await open(this.old, 'r');
+            const oldStat = await fstat(this.oldFd);
+            if (oldStat.size > 0) {
+              console.log(`internalLoad : Loading from ${this.old}`);
+              const tempContent = Buffer.alloc(oldStat.size);
+              await read(this.oldFd, tempContent, 0, oldStat.size, 0);
+              dbDataString = tempContent.toString();
+            } else {
+              console.log(`internalLoad : ${this.old} empty, possibly corrupted.`);
+            }
+            await close(this.oldFd);
+          } else {
+            console.log(`internalLoad : ${this.old} not found.`);
+          }
+        }
       }
     }
-    this.initializing = false;
+    if (dbDataString !== '') {
+      console.log(`internalLoad : database file loaded, populating tables.`);
+      const data = JSON.parse(dbDataString);
+      this.initializing = true;
+      for (let i = 0, l = data.length; i < l; i += 1) {
+        const [label, ids, items] = data[i];
+        const table = new Table (label, this);
+        for (let a = 0, b = items.length; a < b; a += 1) {
+          table.index.set(ids[a], items[a]);
+        }
+      }
+      this.initializing = false;
+      console.log(`internalLoad : tables populated.`);
+    } else {
+      console.log(`internalLoad : database file not loaded, saving empty db.`);
+      await this.internalSave();
+    }
   }
   private async internalBeforeSave () : Promise<void> {
     // Ensure directory existence
@@ -771,10 +670,12 @@ export class Database {
         }
       }
       const mainStat = await fstat(this.mainFd);
-      const mainContent = Buffer.alloc(mainStat.size);
-      await read(this.mainFd, mainContent, 0, mainStat.size, 0);
-      await ftruncate(this.oldFd);
-      await write(this.oldFd, mainContent, 0, mainStat.size, 0);
+      if (mainStat.size > 0) {
+        const mainContent = Buffer.alloc(mainStat.size);
+        await read(this.mainFd, mainContent, 0, mainStat.size, 0);
+        await ftruncate(this.oldFd);
+        await write(this.oldFd, mainContent, 0, mainStat.size, 0);
+      }
       await ftruncate(this.mainFd);
       await write(this.mainFd, dataString, 0, 'utf8');
     } catch (e) {

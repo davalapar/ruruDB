@@ -33,27 +33,11 @@ export declare class Query {
     filterBy(filterFn: (item: Item) => boolean): Query;
     results(): [string[], Item[]];
 }
-export declare class TransactionTable {
-    label: string;
-    realTable: Table;
-    index: Map<string, Item>;
-    private removedIds;
-    constructor(label: string, table: Table);
-    randomItemId(): string;
-    insertItem(id: string, data: Item): Item;
-    fetchItem(id: string): Item;
-    fetchItemId(item: Item): string;
-    updateItem(modified: Item): void;
-    updateItemById(id: string, data: Item): Item;
-    mergeItemById(id: string, data: Item): Item;
-    removeItem(item: Item): void;
-    removeItemById(id: string): void;
-}
 export declare class PseudoTable {
     label: string;
     index: Map<string, Item>;
-    private refTable;
-    private removedItemIds;
+    refTable: Table;
+    removedItemIds: Set<string>;
     constructor(label: string, refTable: Table);
     randomItemId(): string;
     insertItem(id: string, data: Item): Item;
