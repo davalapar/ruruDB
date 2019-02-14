@@ -212,5 +212,18 @@ import { Transaction } from 'rurudb';
     - Otherwise if `*.rrdb.temp` exists, load it
     - Otherwise if `*.rrdb.old` exists, load it
     - Otherwise optionally create directory, and just save it as empty db
+- 4.1.0
+  - Restore interface support
+  ```
+  import { Database, Table, Item } from 'rurudb';
+  interface User extends Item {
+    id ?: string;
+    name: string;
+    age: number;
+  }
+  const db = new Database('test', './temp', false, '30m');
+  await db.initialize();
+  const users = new Table <User> ('users', db);
+  ```
 
 MIT | @davalapar

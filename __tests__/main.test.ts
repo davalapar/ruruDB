@@ -1,7 +1,7 @@
 
 import { Item, Database, Table, Query, Transaction } from '../src/main';
 
-let db = new Database('test', './temp', false, '1s');
+const db = new Database('test', './temp', false, '1s');
 
 interface User extends Item {
   name?: string;
@@ -31,7 +31,7 @@ test('t2: insertItem, randomItemId', async () => {
 });
 
 test('t3: updateItem', async () => {
-  const t3 = new Table ('t3', db);
+  const t3 = new Table <User> ('t3', db);
   await t3.clearTable();
   const aliceId = t3.randomItemId();
   const aliceData = { name: 'alice', age: 25 };

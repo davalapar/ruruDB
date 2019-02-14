@@ -1,5 +1,5 @@
 
-import fs, { stat } from 'fs';
+import fs from 'fs';
 import { promisify } from 'util';
 
 const writeFile = promisify(fs.writeFile);
@@ -22,7 +22,6 @@ export type AcceptedValues = string|number|boolean|null|undefined;
 
 export interface Item {
   readonly id ?: string;
-  readonly table ?: string;
   [key:string]: AcceptedValues|(AcceptedValues)[];
 }
 
@@ -39,14 +38,14 @@ const compareNumber = (
   descend: boolean
 ) : number => (descend ? b - a : a - b);
 
-export class Query {
+export class Query <ExtendedItem extends Item> {
   private resultItems: Item[];
   private queryOffset: number;
   private queryLimit: number;
   private sorts: ([string, boolean]|[Function])[];
   private selectedFields: string[];
   private hiddenFields: string[];
-  public constructor (table: Table) {
+  public constructor (table: Table <ExtendedItem> ) {
     this.resultItems = Array.from(table.index.values());
     this.queryOffset = 0;
     this.queryLimit = this.resultItems.length;
@@ -54,81 +53,81 @@ export class Query {
     this.selectedFields = [];
     this.hiddenFields = [];
   }
-  public offset (value: number) : Query {
+  public offset (value: number) : Query <ExtendedItem> {
     this.queryOffset = value;
     return this;
   }
-  public limit (value: number) : Query {
+  public limit (value: number) : Query <ExtendedItem> {
     this.queryLimit = value;
     return this;
   }
-  public ascend (field: string) : Query {
+  public ascend (field: string) : Query <ExtendedItem> {
     this.sorts.push([field, false]);
     return this;
   }
-  public descend (field: string) : Query {
+  public descend (field: string) : Query <ExtendedItem> {
     this.sorts.push([field, true]);
     return this;
   }
-  public sortBy (sortFn: (a: Item, b: Item) => number) : Query {
+  public sortBy (sortFn: (a: Item, b: Item) => number) : Query <ExtendedItem> {
     this.sorts.push([sortFn]);
     return this;
   }
-  public gt (field: string, value: number) : Query {
+  public gt (field: string, value: number) : Query <ExtendedItem> {
     this.resultItems = this.resultItems.filter(item => Number.isFinite(item[field] as number) && item[field] as number > value);
     return this;
   }
-  public gte (field: string, value: number) : Query {
+  public gte (field: string, value: number) : Query <ExtendedItem> {
     this.resultItems = this.resultItems.filter(item => Number.isFinite(item[field] as number) && item[field] as number >= value);
     return this;
   }
-  public lt (field: string, value: number) : Query {    
+  public lt (field: string, value: number) : Query <ExtendedItem> {    
     this.resultItems = this.resultItems.filter(item => Number.isFinite(item[field] as number) && item[field] as number < value);
     return this;
   }
-  public lte (field: string, value: number) : Query {
+  public lte (field: string, value: number) : Query <ExtendedItem> {
     this.resultItems = this.resultItems.filter(item => Number.isFinite(item[field] as number) && item[field] as number <= value);
     return this;
   }
-  public eq (field: string, value: number) : Query  {
+  public eq (field: string, value: number) : Query <ExtendedItem> {
     this.resultItems = this.resultItems.filter(item => item[field] === value);
     return this;
   }
-  public neq (field: string, value: number) : Query  {
+  public neq (field: string, value: number) : Query <ExtendedItem> {
     this.resultItems = this.resultItems.filter(item => item[field] !== value);
     return this;
   }
-  public has (field: string, value: (AcceptedValues)) : Query  {
+  public has (field: string, value: (AcceptedValues)) : Query <ExtendedItem> {
     this.resultItems = this.resultItems.filter(item => Array.isArray(item[field]) && (item[field] as (AcceptedValues)[]).includes(value));
     return this;
   }
-  public hasAnyOf (field: string, values: (AcceptedValues)[]) : Query  {
+  public hasAnyOf (field: string, values: (AcceptedValues)[]) : Query <ExtendedItem> {
     
     this.resultItems = this.resultItems.filter(item => Array.isArray(item[field]) && values.some(value => (item[field] as (AcceptedValues)[]).includes(value)));
     return this;
   }
-  public hasAllOf (field: string, values: (AcceptedValues)[]) : Query  {
+  public hasAllOf (field: string, values: (AcceptedValues)[]) : Query <ExtendedItem> {
     
     this.resultItems = this.resultItems.filter(item => Array.isArray(item[field]) && values.every(value => (item[field] as (AcceptedValues)[]).includes(value)));
     return this;
   }
-  public hasNoneOfAny (field: string, values: (AcceptedValues)[]) : Query  {    
+  public hasNoneOfAny (field: string, values: (AcceptedValues)[]) : Query <ExtendedItem> {    
     this.resultItems = this.resultItems.filter(item => Array.isArray(item[field]) && values.some(value => (item[field] as (AcceptedValues)[]).includes(value) === false));
     return this;
   }
-  public hasNoneOfAll (field: string, values: (AcceptedValues)[]) : Query  {    
+  public hasNoneOfAll (field: string, values: (AcceptedValues)[]) : Query <ExtendedItem> {    
     this.resultItems = this.resultItems.filter(item => Array.isArray(item[field]) && values.every(value => (item[field] as (AcceptedValues)[]).includes(value) === false));
     return this;
   }
-  public select (fields: string[]) : Query  {
+  public select (fields: string[]) : Query <ExtendedItem> {
     this.selectedFields = fields.slice();
     return this;
   }
-  public hide (fields: string[]) : Query  {
+  public hide (fields: string[]) : Query <ExtendedItem> {
     this.hiddenFields = fields.slice();
     return this;
   }
-  public filterBy (filterFn: (item: Item) => boolean) : Query  {    
+  public filterBy (filterFn: (item: Item) => boolean) : Query <ExtendedItem> {    
     this.resultItems = this.resultItems.filter(item => filterFn(item));
     return this;
   }
@@ -187,12 +186,12 @@ export class Query {
   }
 }
 
-export class PseudoTable {
+export class PseudoTable <ExtendedItem extends Item> {
   public label: string;
   public index: Map<string, Item>;
-  public refTable: Table;
+  public refTable: Table <ExtendedItem>;
   public removedItemIds: Set<string>;
-  public constructor (label: string, refTable: Table) {
+  public constructor (label: string, refTable: Table <ExtendedItem>) {
     this.label = label;
     this.refTable = refTable;
     this.index = new Map();
@@ -205,14 +204,14 @@ export class PseudoTable {
     }
     return id;
   }
-  public insertItem (id: string, data : Item) : Item {
+  public insertItem (id: string, data : ExtendedItem) : ExtendedItem {
     if (this.index.has(id)) {
       throw Error('insertItem : Invalid "id", must not exist in table');
     }
     if (this.removedItemIds.has(id)) {
       throw Error('insertItem : Invalid "id", already set to be removed');
     }
-    const item: Item = {
+    const item = {
       id,
       ...cloneDeep(data),
     };
@@ -220,24 +219,24 @@ export class PseudoTable {
     const copy = cloneDeep (item);
     return copy;
   }
-  public updateItem (modified: Item) : void {
+  public updateItem (modified: ExtendedItem) : void {
     if (modified.id === undefined) {
       throw Error('updateItem : Invalid "item", "id" must not be "undefined"');
     }
     if (this.index.has(modified.id) === false) {
       throw Error('updateItem : Invalid "item", item "id" must exist in table');
     }
-    const item: Item = cloneDeep  (modified);
+    const item = cloneDeep  (modified);
     this.index.set(item.id as string, item);
   }
-  public updateItemById (id: string, data: Item) : Item {
+  public updateItemById (id: string, data: ExtendedItem) : ExtendedItem {
     if (data.id !== undefined) {
       throw Error('updateItemById : Invalid "data", "id" must be "undefined"');
     }
     if (this.index.has(id) === false) {
       throw Error('updateItemById : Invalid "id", must exist in table');
     }
-    const item: Item = {
+    const item = {
       id,
       ...cloneDeep(data),
     };
@@ -245,7 +244,7 @@ export class PseudoTable {
     const copy = cloneDeep  (item);
     return copy;
   }
-  public mergeItemById (id: string, data: Item) : Item {
+  public mergeItemById (id: string, data: ExtendedItem) : ExtendedItem {
     if (data.id !== undefined) {
       throw Error('mergeItemById : Invalid "data", "id" must be "undefined"');
     }
@@ -261,7 +260,7 @@ export class PseudoTable {
     const copy = cloneDeep  (item);
     return copy;
   }
-  public removeItem (item: Item) : void {
+  public removeItem (item: ExtendedItem) : void {
     if (item.id === undefined) {
       throw Error('removeItem : Invalid "item", "id" must not be "undefined"');
     }
@@ -295,18 +294,18 @@ export class PseudoTable {
       throw Error('removeItemById : Invalid "id", "id" must exist in table');
     }
   }
-  public fetchItem (id: string) : Item {
+  public fetchItem (id: string) : ExtendedItem {
     if (id === undefined) {
       throw Error('fetchItem : Invalid "id", "id" must not be "undefined"');
     }
     if (this.index.has(id)) {
       const item = this.index.get(id);
-      const copy = cloneDeep  (item as Item);
+      const copy = cloneDeep  (item as ExtendedItem);
       return copy;
     } else if (this.refTable.index.has(id)) {
-      const item = this.refTable.index.get(id) as Item;
+      const item = this.refTable.index.get(id) as ExtendedItem;
       this.index.set(id, item);
-      const copy = cloneDeep  (item as Item);
+      const copy = cloneDeep  (item as ExtendedItem);
       return copy;
     } else {
       throw Error('fetchItem : Invalid "item", "id" must exist in table');
@@ -322,11 +321,9 @@ export class PseudoTable {
  * - Changes are applied at once if the Transaction doesn't throw
  */
 
-type fetchTable =  (label: string) => PseudoTable;
-
 export class Transaction {
   private database: Database;
-  private index: Map<string, PseudoTable>;
+  private index: Map<string, PseudoTable<Item>>;
   public constructor (database: Database) {
     if (database.initialized === false) {
       throw Error('Cannot create transaction on non-initialized database.');
@@ -334,15 +331,15 @@ export class Transaction {
     this.database = database;
     this.index = new Map();
   }
-  public async exec (execFn: (fetchTable: fetchTable) => void) : Promise<void> {
-    const fetchTable: fetchTable =  (label: string) : PseudoTable  => {
+  public async exec (execFn: (fetchTable: <ExtendedItem extends Item> (label:string) => PseudoTable<ExtendedItem>) => void) : Promise<void> {
+    const fetchTable = <ExtendedItem extends Item> (label: string) : PseudoTable <ExtendedItem> => {
       if (this.database.index.has(label) === false) {
         throw Error('fetchTable : Invalid "label", table not found.');
       }
       if (this.index.has(label)) {
-        return this.index.get(label) as PseudoTable;
+        return this.index.get(label) as PseudoTable <ExtendedItem>;
       }
-      const pseudoTable = new PseudoTable(label, this.database.index.get(label) as Table);
+      const pseudoTable = new PseudoTable(label, this.database.index.get(label) as Table <ExtendedItem>);
       this.index.set(label, pseudoTable);
       return pseudoTable;
     };
@@ -365,7 +362,7 @@ export class Transaction {
   }
 }
 
-export class Table {
+export class Table <ExtendedItem extends Item> {
   public label: string;
   private database: Database;
   public index: Map<string, Item>;
@@ -377,7 +374,7 @@ export class Table {
     this.database = database;
     this.index = new Map();
     if (database.index.has(label)) {
-      return database.index.get(label) as Table;
+      return database.index.get(label) as Table<ExtendedItem>;
     } else if (mustExist === true) {
       throw Error(`constructor : Table "${label}" with "mustExist=true" not found!`);
     }
@@ -390,11 +387,11 @@ export class Table {
     }
     return id;
   }
-  public async insertItem (id: string, data : Item) : Promise<Item> {
+  public async insertItem (id: string, data : ExtendedItem) : Promise<ExtendedItem> {
     if (this.index.has(id)) {
       throw Error('insertItem : Invalid "id", must not exist in table');
     }
-    const item: Item = {
+    const item = {
       id,
       ...cloneDeep(data),
     };
@@ -403,25 +400,25 @@ export class Table {
     const copy = cloneDeep (item);
     return copy;
   }
-  public async updateItem (modified: Item) : Promise<void> {
+  public async updateItem (modified: ExtendedItem) : Promise<void> {
     if (modified.id === undefined) {
       throw Error('updateItem : Invalid "item", "id" must not be "undefined"');
     }
     if (this.index.has(modified.id) === false) {
       throw Error('updateItem : Invalid "item", item "id" must exist in table');
     }
-    const item: Item = cloneDeep  (modified);
+    const item = cloneDeep  (modified);
     this.index.set(item.id as string, item);
     await this.database.save();
   }
-  public async updateItemById (id: string, data: Item) : Promise<Item> {
+  public async updateItemById (id: string, data: ExtendedItem) : Promise<ExtendedItem> {
     if (data.id !== undefined) {
       throw Error('updateItemById : Invalid "data", "id" must be "undefined"');
     }
     if (this.index.has(id) === false) {
       throw Error('updateItemById : Invalid "id", must exist in table');
     }
-    const item: Item = {
+    const item = {
       id,
       ...cloneDeep(data),
     };
@@ -430,7 +427,7 @@ export class Table {
     const copy = cloneDeep  (item);
     return copy;
   }
-  public async mergeItemById (id: string, data: Item) : Promise<Item> {
+  public async mergeItemById (id: string, data: ExtendedItem) : Promise<ExtendedItem> {
     if (data.id !== undefined) {
       throw Error('mergeItemById : Invalid "data", "id" must be "undefined"');
     }
@@ -447,7 +444,7 @@ export class Table {
     const copy = cloneDeep  (item);
     return copy;
   }
-  public async removeItem (item: Item) : Promise<void> {
+  public async removeItem (item: ExtendedItem) : Promise<void> {
     if (item.id === undefined) {
       throw Error('removeItem : Invalid "item", "id" must not be "undefined"');
     }
@@ -467,7 +464,7 @@ export class Table {
     this.index.delete(id);
     await this.database.save();
   }
-  public fetchItem (id: string) : Item {
+  public fetchItem (id: string) : ExtendedItem {
     if (id === undefined) {
       throw Error('fetchItem : Invalid "id", "id" must not be "undefined"');
     }
@@ -475,7 +472,7 @@ export class Table {
       throw Error('fetchItem : Invalid "item", "id" must exist in table');
     }
     const item = this.index.get(id);
-    const copy = cloneDeep  (item as Item);
+    const copy = cloneDeep  (item as ExtendedItem);
     return copy;
   }
   public async clearTable() : Promise<void> {
@@ -486,7 +483,7 @@ export class Table {
     this.database.index.delete(this.label);
     await this.database.save();
   }
-  public createQuery () : Query  {
+  public createQuery () : Query <ExtendedItem> {
     return new Query(this);
   }
 }
@@ -500,7 +497,7 @@ export class Database {
   private old: string;
   private snapshotInterval: number;
   private lastSnapshotTimestamp: number;
-  public index: Map<string, Table>; // eslint-disable-line
+  public index: Map<string, Table <Item>>; // eslint-disable-line
   private saving = false;
   private queue: [Function, Function][] = [];
   private mainFd: number;
@@ -717,7 +714,7 @@ export class Database {
     }
     await this.internalSave();
   }
-  public useTable  (label: string, mustExist: boolean) : Table {
+  public useTable (label: string, mustExist: boolean) : Table <Item> {
     const table = new Table  (label, this, mustExist);
     return table;
   }

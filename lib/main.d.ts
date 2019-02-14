@@ -1,76 +1,74 @@
 export declare type AcceptedValues = string | number | boolean | null | undefined;
 export interface Item {
     readonly id?: string;
-    readonly table?: string;
     [key: string]: AcceptedValues | (AcceptedValues)[];
 }
-export declare class Query {
+export declare class Query<ExtendedItem extends Item> {
     private resultItems;
     private queryOffset;
     private queryLimit;
     private sorts;
     private selectedFields;
     private hiddenFields;
-    constructor(table: Table);
-    offset(value: number): Query;
-    limit(value: number): Query;
-    ascend(field: string): Query;
-    descend(field: string): Query;
-    sortBy(sortFn: (a: Item, b: Item) => number): Query;
-    gt(field: string, value: number): Query;
-    gte(field: string, value: number): Query;
-    lt(field: string, value: number): Query;
-    lte(field: string, value: number): Query;
-    eq(field: string, value: number): Query;
-    neq(field: string, value: number): Query;
-    has(field: string, value: (AcceptedValues)): Query;
-    hasAnyOf(field: string, values: (AcceptedValues)[]): Query;
-    hasAllOf(field: string, values: (AcceptedValues)[]): Query;
-    hasNoneOfAny(field: string, values: (AcceptedValues)[]): Query;
-    hasNoneOfAll(field: string, values: (AcceptedValues)[]): Query;
-    select(fields: string[]): Query;
-    hide(fields: string[]): Query;
-    filterBy(filterFn: (item: Item) => boolean): Query;
+    constructor(table: Table<ExtendedItem>);
+    offset(value: number): Query<ExtendedItem>;
+    limit(value: number): Query<ExtendedItem>;
+    ascend(field: string): Query<ExtendedItem>;
+    descend(field: string): Query<ExtendedItem>;
+    sortBy(sortFn: (a: Item, b: Item) => number): Query<ExtendedItem>;
+    gt(field: string, value: number): Query<ExtendedItem>;
+    gte(field: string, value: number): Query<ExtendedItem>;
+    lt(field: string, value: number): Query<ExtendedItem>;
+    lte(field: string, value: number): Query<ExtendedItem>;
+    eq(field: string, value: number): Query<ExtendedItem>;
+    neq(field: string, value: number): Query<ExtendedItem>;
+    has(field: string, value: (AcceptedValues)): Query<ExtendedItem>;
+    hasAnyOf(field: string, values: (AcceptedValues)[]): Query<ExtendedItem>;
+    hasAllOf(field: string, values: (AcceptedValues)[]): Query<ExtendedItem>;
+    hasNoneOfAny(field: string, values: (AcceptedValues)[]): Query<ExtendedItem>;
+    hasNoneOfAll(field: string, values: (AcceptedValues)[]): Query<ExtendedItem>;
+    select(fields: string[]): Query<ExtendedItem>;
+    hide(fields: string[]): Query<ExtendedItem>;
+    filterBy(filterFn: (item: Item) => boolean): Query<ExtendedItem>;
     results(): [string[], Item[]];
 }
-export declare class PseudoTable {
+export declare class PseudoTable<ExtendedItem extends Item> {
     label: string;
     index: Map<string, Item>;
-    refTable: Table;
+    refTable: Table<ExtendedItem>;
     removedItemIds: Set<string>;
-    constructor(label: string, refTable: Table);
+    constructor(label: string, refTable: Table<ExtendedItem>);
     randomItemId(): string;
-    insertItem(id: string, data: Item): Item;
-    updateItem(modified: Item): void;
-    updateItemById(id: string, data: Item): Item;
-    mergeItemById(id: string, data: Item): Item;
-    removeItem(item: Item): void;
+    insertItem(id: string, data: ExtendedItem): ExtendedItem;
+    updateItem(modified: ExtendedItem): void;
+    updateItemById(id: string, data: ExtendedItem): ExtendedItem;
+    mergeItemById(id: string, data: ExtendedItem): ExtendedItem;
+    removeItem(item: ExtendedItem): void;
     removeItemById(id: string): void;
-    fetchItem(id: string): Item;
+    fetchItem(id: string): ExtendedItem;
 }
-declare type fetchTable = (label: string) => PseudoTable;
 export declare class Transaction {
     private database;
     private index;
     constructor(database: Database);
-    exec(execFn: (fetchTable: fetchTable) => void): Promise<void>;
+    exec(execFn: (fetchTable: <ExtendedItem extends Item>(label: string) => PseudoTable<ExtendedItem>) => void): Promise<void>;
 }
-export declare class Table {
+export declare class Table<ExtendedItem extends Item> {
     label: string;
     private database;
     index: Map<string, Item>;
     constructor(label: string, database: Database, mustExist?: boolean);
     randomItemId(): string;
-    insertItem(id: string, data: Item): Promise<Item>;
-    updateItem(modified: Item): Promise<void>;
-    updateItemById(id: string, data: Item): Promise<Item>;
-    mergeItemById(id: string, data: Item): Promise<Item>;
-    removeItem(item: Item): Promise<void>;
+    insertItem(id: string, data: ExtendedItem): Promise<ExtendedItem>;
+    updateItem(modified: ExtendedItem): Promise<void>;
+    updateItemById(id: string, data: ExtendedItem): Promise<ExtendedItem>;
+    mergeItemById(id: string, data: ExtendedItem): Promise<ExtendedItem>;
+    removeItem(item: ExtendedItem): Promise<void>;
     removeItemById(id: string): Promise<void>;
-    fetchItem(id: string): Item;
+    fetchItem(id: string): ExtendedItem;
     clearTable(): Promise<void>;
     removeTable(): Promise<void>;
-    createQuery(): Query;
+    createQuery(): Query<ExtendedItem>;
 }
 export declare class Database {
     private filename;
@@ -80,7 +78,7 @@ export declare class Database {
     private old;
     private snapshotInterval;
     private lastSnapshotTimestamp;
-    index: Map<string, Table>;
+    index: Map<string, Table<Item>>;
     private saving;
     private queue;
     private mainFd;
@@ -97,7 +95,6 @@ export declare class Database {
     private internalSaveLoop;
     private internalSave;
     save(): Promise<void>;
-    useTable(label: string, mustExist: boolean): Table;
+    useTable(label: string, mustExist: boolean): Table<Item>;
 }
-export {};
 //# sourceMappingURL=main.d.ts.map
