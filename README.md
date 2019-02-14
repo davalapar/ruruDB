@@ -120,7 +120,10 @@ import { Query } from 'rurudb';
 | `OK` | - | - | `Query().hide(fields)` | `Query()` | Hide fields |
 | `OK` | - | - | `Query().sortBy(sortFn)` | `Query()` | Sort by function, must return a `number` |
 | `OK` | - | - | `Query().filterBy(filterFn)` | `Query()` | Filter by function, must return a `boolean` |
-| `OK` | - | - | `Query().results()` | `[string[],Items[]]` | Return query results |
+| `OK` | - | - | `Query().ids()` | `string[]` | Return query result `ids[]` |
+| `OK` | - | - | `Query().items()` | `Item[]` | Return query result `items[]` |
+| `OK` | - | - | `Query().entries()` | `[string, Item][]` | Return query result `[id, item]` pairs |
+| `OK` | - | - | `Query().results()` | `[string[],Item[]]` | Return query results `[id[], item[]]` separated |
 
 #### Notes on `filterBy(filterFn)`
 
@@ -214,7 +217,7 @@ import { Transaction } from 'rurudb';
     - Otherwise optionally create directory, and just save it as empty db
 - 4.1.0
   - Restore interface support
-  ```
+  ```ts
   import { Database, Table, Item } from 'rurudb';
   interface User extends Item {
     id ?: string;
@@ -225,5 +228,8 @@ import { Transaction } from 'rurudb';
   await db.initialize();
   const users = new Table <User> ('users', db);
   ```
+- 4.2.0 `¯\_(ツ)_/¯`
+  - Add `Query().ids()`, `Query().items()` & `Query().entries()`
+  - Prevent `Query()` mutation once any of `Query().ids()`, `Query().items()`, `Query().entries()` & `Query().results()` are already called
 
 MIT | @davalapar

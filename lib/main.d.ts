@@ -4,12 +4,15 @@ export interface Item {
     [key: string]: AcceptedValues | (AcceptedValues)[];
 }
 export declare class Query<ExtendedItem extends Item> {
+    private resultIds;
     private resultItems;
+    private slicedItems;
     private queryOffset;
     private queryLimit;
     private sorts;
     private selectedFields;
     private hiddenFields;
+    private finalized;
     constructor(table: Table<ExtendedItem>);
     offset(value: number): Query<ExtendedItem>;
     limit(value: number): Query<ExtendedItem>;
@@ -30,6 +33,10 @@ export declare class Query<ExtendedItem extends Item> {
     select(fields: string[]): Query<ExtendedItem>;
     hide(fields: string[]): Query<ExtendedItem>;
     filterBy(filterFn: (item: Item) => boolean): Query<ExtendedItem>;
+    private finalize;
+    ids(): string[];
+    items(): Item[];
+    entries(): [string, Item][];
     results(): [string[], Item[]];
 }
 export declare class PseudoTable<ExtendedItem extends Item> {

@@ -39,101 +39,124 @@ const compareNumber = (
 ) : number => (descend ? b - a : a - b);
 
 export class Query <ExtendedItem extends Item> {
+  private resultIds: string[];
   private resultItems: Item[];
+  private slicedItems: Item[];
   private queryOffset: number;
   private queryLimit: number;
   private sorts: ([string, boolean]|[Function])[];
   private selectedFields: string[];
   private hiddenFields: string[];
+  private finalized: boolean;
   public constructor (table: Table <ExtendedItem> ) {
-    this.resultItems = Array.from(table.index.values());
+    this.resultIds = [];
+    this.resultItems = [];
+    this.slicedItems = Array.from(table.index.values());
     this.queryOffset = 0;
-    this.queryLimit = this.resultItems.length;
+    this.queryLimit = this.slicedItems.length;
     this.sorts = [];
     this.selectedFields = [];
     this.hiddenFields = [];
+    this.finalized = false;
   }
   public offset (value: number) : Query <ExtendedItem> {
+    if (this.finalized) throw Error('offset : Query must not be finalized yet');
     this.queryOffset = value;
     return this;
   }
   public limit (value: number) : Query <ExtendedItem> {
+    if (this.finalized) throw Error('limit : Query must not be finalized yet');
     this.queryLimit = value;
     return this;
   }
   public ascend (field: string) : Query <ExtendedItem> {
+    if (this.finalized) throw Error('ascend : Query must not be finalized yet');
     this.sorts.push([field, false]);
     return this;
   }
   public descend (field: string) : Query <ExtendedItem> {
+    if (this.finalized) throw Error('descend : Query must not be finalized yet');
     this.sorts.push([field, true]);
     return this;
   }
   public sortBy (sortFn: (a: Item, b: Item) => number) : Query <ExtendedItem> {
+    if (this.finalized) throw Error('sortBy : Query must not be finalized yet');
     this.sorts.push([sortFn]);
     return this;
   }
   public gt (field: string, value: number) : Query <ExtendedItem> {
-    this.resultItems = this.resultItems.filter(item => Number.isFinite(item[field] as number) && item[field] as number > value);
+    if (this.finalized) throw Error('gt : Query must not be finalized yet');
+    this.slicedItems = this.slicedItems.filter(item => Number.isFinite(item[field] as number) && item[field] as number > value);
     return this;
   }
   public gte (field: string, value: number) : Query <ExtendedItem> {
-    this.resultItems = this.resultItems.filter(item => Number.isFinite(item[field] as number) && item[field] as number >= value);
+    if (this.finalized) throw Error('gte : Query must not be finalized yet');
+    this.slicedItems = this.slicedItems.filter(item => Number.isFinite(item[field] as number) && item[field] as number >= value);
     return this;
   }
-  public lt (field: string, value: number) : Query <ExtendedItem> {    
-    this.resultItems = this.resultItems.filter(item => Number.isFinite(item[field] as number) && item[field] as number < value);
+  public lt (field: string, value: number) : Query <ExtendedItem> {
+    if (this.finalized) throw Error('lt : Query must not be finalized yet');  
+    this.slicedItems = this.slicedItems.filter(item => Number.isFinite(item[field] as number) && item[field] as number < value);
     return this;
   }
   public lte (field: string, value: number) : Query <ExtendedItem> {
-    this.resultItems = this.resultItems.filter(item => Number.isFinite(item[field] as number) && item[field] as number <= value);
+    if (this.finalized) throw Error('lte : Query must not be finalized yet');
+    this.slicedItems = this.slicedItems.filter(item => Number.isFinite(item[field] as number) && item[field] as number <= value);
     return this;
   }
   public eq (field: string, value: number) : Query <ExtendedItem> {
-    this.resultItems = this.resultItems.filter(item => item[field] === value);
+    if (this.finalized) throw Error('eq : Query must not be finalized yet');
+    this.slicedItems = this.slicedItems.filter(item => item[field] === value);
     return this;
   }
   public neq (field: string, value: number) : Query <ExtendedItem> {
-    this.resultItems = this.resultItems.filter(item => item[field] !== value);
+    if (this.finalized) throw Error('neq : Query must not be finalized yet');
+    this.slicedItems = this.slicedItems.filter(item => item[field] !== value);
     return this;
   }
   public has (field: string, value: (AcceptedValues)) : Query <ExtendedItem> {
-    this.resultItems = this.resultItems.filter(item => Array.isArray(item[field]) && (item[field] as (AcceptedValues)[]).includes(value));
+    if (this.finalized) throw Error('has : Query must not be finalized yet');
+    this.slicedItems = this.slicedItems.filter(item => Array.isArray(item[field]) && (item[field] as (AcceptedValues)[]).includes(value));
     return this;
   }
   public hasAnyOf (field: string, values: (AcceptedValues)[]) : Query <ExtendedItem> {
-    
-    this.resultItems = this.resultItems.filter(item => Array.isArray(item[field]) && values.some(value => (item[field] as (AcceptedValues)[]).includes(value)));
+    if (this.finalized) throw Error('hasAnyOf : Query must not be finalized yet');
+    this.slicedItems = this.slicedItems.filter(item => Array.isArray(item[field]) && values.some(value => (item[field] as (AcceptedValues)[]).includes(value)));
     return this;
   }
   public hasAllOf (field: string, values: (AcceptedValues)[]) : Query <ExtendedItem> {
-    
-    this.resultItems = this.resultItems.filter(item => Array.isArray(item[field]) && values.every(value => (item[field] as (AcceptedValues)[]).includes(value)));
+    if (this.finalized) throw Error('hasAllOf : Query must not be finalized yet');
+    this.slicedItems = this.slicedItems.filter(item => Array.isArray(item[field]) && values.every(value => (item[field] as (AcceptedValues)[]).includes(value)));
     return this;
   }
-  public hasNoneOfAny (field: string, values: (AcceptedValues)[]) : Query <ExtendedItem> {    
-    this.resultItems = this.resultItems.filter(item => Array.isArray(item[field]) && values.some(value => (item[field] as (AcceptedValues)[]).includes(value) === false));
+  public hasNoneOfAny (field: string, values: (AcceptedValues)[]) : Query <ExtendedItem> {
+    if (this.finalized) throw Error('hasNoneOfAny : Query must not be finalized yet');  
+    this.slicedItems = this.slicedItems.filter(item => Array.isArray(item[field]) && values.some(value => (item[field] as (AcceptedValues)[]).includes(value) === false));
     return this;
   }
-  public hasNoneOfAll (field: string, values: (AcceptedValues)[]) : Query <ExtendedItem> {    
-    this.resultItems = this.resultItems.filter(item => Array.isArray(item[field]) && values.every(value => (item[field] as (AcceptedValues)[]).includes(value) === false));
+  public hasNoneOfAll (field: string, values: (AcceptedValues)[]) : Query <ExtendedItem> {
+    if (this.finalized) throw Error('hasNoneOfAll : Query must not be finalized yet');
+    this.slicedItems = this.slicedItems.filter(item => Array.isArray(item[field]) && values.every(value => (item[field] as (AcceptedValues)[]).includes(value) === false));
     return this;
   }
   public select (fields: string[]) : Query <ExtendedItem> {
+    if (this.finalized) throw Error('select : Query must not be finalized yet');
     this.selectedFields = fields.slice();
     return this;
   }
   public hide (fields: string[]) : Query <ExtendedItem> {
+    if (this.finalized) throw Error('hide : Query must not be finalized yet');
     this.hiddenFields = fields.slice();
     return this;
   }
-  public filterBy (filterFn: (item: Item) => boolean) : Query <ExtendedItem> {    
-    this.resultItems = this.resultItems.filter(item => filterFn(item));
+  public filterBy (filterFn: (item: Item) => boolean) : Query <ExtendedItem> {
+    if (this.finalized) throw Error('filterBy : Query must not be finalized yet');
+    this.slicedItems = this.slicedItems.filter(item => filterFn(item));
     return this;
   }
-  public results () : [string[], Item[]] {
+  private finalize () : void {
     if (this.sorts.length > 0) {
-      this.resultItems.sort((a, b) => {
+      this.slicedItems.sort((a, b) => {
         for (let i = 0, l = this.sorts.length; i < l; i += 1) {
           const sort = this.sorts[i];
           if (typeof sort[0] === 'function') {
@@ -141,11 +164,11 @@ export class Query <ExtendedItem extends Item> {
             return sortFn(a, b);
           } else {
             const [field, fieldDescend] = sort as [string, boolean];
-            if (typeof a[field] !== typeof b[field]) { // If field of both resultItems don't match: EXIT LOOP
+            if (typeof a[field] !== typeof b[field]) { // If field of both slicedItems don't match: EXIT LOOP
               break;
             } else if (typeof a[field] !== 'string' || typeof a[field] !== 'number') { // If both item fields are't "string" or "number": EXIT LOOP
               break;
-            } else if (a[field] === b[field]) { // If value of both resultItems are equal: SKIP SORT
+            } else if (a[field] === b[field]) { // If value of both slicedItems are equal: SKIP SORT
               continue;            
             } else if (typeof a[field] === 'string') {
               return compareString(a[field] as string, b[field] as string, fieldDescend as boolean);            
@@ -157,16 +180,12 @@ export class Query <ExtendedItem extends Item> {
         return 0;
       });
     }
-    // Apply our OFFSET & LIMIT filters
-    this.resultItems = this.resultItems.slice(this.queryOffset, this.queryOffset + this.queryLimit);
-    // Copy our resultItems into a new RESULTS array
-    // This is because we return clones that could be modified in next step
-    // Next step is apply selected & hidden fields
-    const ids: string[] = new Array(this.resultItems.length);
-    const items: Item[] = new Array(this.resultItems.length);
-    for (let i = 0, l = this.resultItems.length; i < l; i += 1) {
-      const item = cloneDeep  (this.resultItems[i]);      
-      ids[i] = this.resultItems[i].id as string;
+    this.slicedItems = this.slicedItems.slice(this.queryOffset, this.queryOffset + this.queryLimit);
+    const resultIds: string[] = new Array(this.slicedItems.length);
+    const resultItems: Item[] = new Array(this.slicedItems.length);
+    for (let i = 0, l = this.slicedItems.length; i < l; i += 1) {
+      const item = cloneDeep (this.slicedItems[i]);
+      resultIds[i] = item.id as string;
       const itemFields = Object.keys(item);      
       if (this.selectedFields.length > 1) {
         for (let a = 0, b = itemFields.length; a < b; a += 1) { // For each item field
@@ -180,9 +199,27 @@ export class Query <ExtendedItem extends Item> {
         const currentHiddenField = this.hiddenFields[a];
         delete item[currentHiddenField];
       }
-      items[i] = item;
+      resultItems[i] = item;
     }
-    return [ids, items];
+    this.resultIds = resultIds;
+    this.resultItems = resultItems;
+    this.finalized = true;
+  }
+  public ids () : string[] {
+    if (this.finalized === false) this.finalize();
+    return this.resultIds;
+  }
+  public items () : Item[] {
+    if (this.finalized === false) this.finalize();
+    return this.resultItems;
+  }
+  public entries () : [string, Item][] {
+    if (this.finalized === false) this.finalize();
+    return this.resultItems.map((item) => [item.id, item] as [string, Item]);
+  }
+  public results () : [string[], Item[]] {
+    if (this.finalized === false) this.finalize();
+    return [this.resultIds, this.resultItems];
   }
 }
 
