@@ -13,6 +13,7 @@ const exists = promisify(fs.exists);
 const mkdir = promisify(fs.mkdir);
 
 import cloneDeep from 'lodash/cloneDeep';
+import isPlainObject from 'lodash/isPlainObject';
 import uuidv4 from 'uuid/v4';
 import ms from 'ms';
 
@@ -242,6 +243,9 @@ export class PseudoTable <ExtendedItem extends Item> {
     return id;
   }
   public insertItem (id: string, data : ExtendedItem) : ExtendedItem {
+    if (isPlainObject(data) === false) {
+      throw Error('insertItem : Invalid "data", "data" must be a plain object');
+    }
     if (this.index.has(id)) {
       throw Error('insertItem : Invalid "id", must not exist in table');
     }
@@ -257,6 +261,9 @@ export class PseudoTable <ExtendedItem extends Item> {
     return copy;
   }
   public updateItem (modified: ExtendedItem) : void {
+    if (isPlainObject(modified) === false) {
+      throw Error('updateItem : Invalid "modified", "modified" must be a plain object');
+    }
     if (modified.id === undefined) {
       throw Error('updateItem : Invalid "item", "id" must not be "undefined"');
     }
@@ -267,6 +274,9 @@ export class PseudoTable <ExtendedItem extends Item> {
     this.index.set(item.id as string, item);
   }
   public updateItemById (id: string, data: ExtendedItem) : ExtendedItem {
+    if (isPlainObject(data) === false) {
+      throw Error('updateItemById : Invalid "data", "data" must be a plain object');
+    }
     if (data.id !== undefined) {
       throw Error('updateItemById : Invalid "data", "id" must be "undefined"');
     }
@@ -282,6 +292,9 @@ export class PseudoTable <ExtendedItem extends Item> {
     return copy;
   }
   public mergeItemById (id: string, data: ExtendedItem) : ExtendedItem {
+    if (isPlainObject(data) === false) {
+      throw Error('mergeItemById : Invalid "data", "data" must be a plain object');
+    }
     if (data.id !== undefined) {
       throw Error('mergeItemById : Invalid "data", "id" must be "undefined"');
     }
@@ -298,6 +311,9 @@ export class PseudoTable <ExtendedItem extends Item> {
     return copy;
   }
   public removeItem (item: ExtendedItem) : void {
+    if (isPlainObject(item) === false) {
+      throw Error('removeItem : Invalid "item", "item" must be a plain object');
+    }
     if (item.id === undefined) {
       throw Error('removeItem : Invalid "item", "id" must not be "undefined"');
     }
@@ -425,6 +441,9 @@ export class Table <ExtendedItem extends Item> {
     return id;
   }
   public async insertItem (id: string, data : ExtendedItem) : Promise<ExtendedItem> {
+    if (isPlainObject(data) === false) {
+      throw Error('insertItem : Invalid "data", "data" must be a plain object');
+    }
     if (this.index.has(id)) {
       throw Error('insertItem : Invalid "id", must not exist in table');
     }
@@ -438,6 +457,9 @@ export class Table <ExtendedItem extends Item> {
     return copy;
   }
   public async updateItem (modified: ExtendedItem) : Promise<void> {
+    if (isPlainObject(modified) === false) {
+      throw Error('updateItem : Invalid "modified", "modified" must be a plain object');
+    }
     if (modified.id === undefined) {
       throw Error('updateItem : Invalid "item", "id" must not be "undefined"');
     }
@@ -449,6 +471,9 @@ export class Table <ExtendedItem extends Item> {
     await this.database.save();
   }
   public async updateItemById (id: string, data: ExtendedItem) : Promise<ExtendedItem> {
+    if (isPlainObject(data) === false) {
+      throw Error('updateItemById : Invalid "data", "data" must be a plain object');
+    }
     if (data.id !== undefined) {
       throw Error('updateItemById : Invalid "data", "id" must be "undefined"');
     }
@@ -465,6 +490,9 @@ export class Table <ExtendedItem extends Item> {
     return copy;
   }
   public async mergeItemById (id: string, data: ExtendedItem) : Promise<ExtendedItem> {
+    if (isPlainObject(data) === false) {
+      throw Error('mergeItemById : Invalid "data", "data" must be a plain object');
+    }
     if (data.id !== undefined) {
       throw Error('mergeItemById : Invalid "data", "id" must be "undefined"');
     }
@@ -482,6 +510,9 @@ export class Table <ExtendedItem extends Item> {
     return copy;
   }
   public async removeItem (item: ExtendedItem) : Promise<void> {
+    if (isPlainObject(item) === false) {
+      throw Error('removeItem : Invalid "item", "item" must be a plain object');
+    }
     if (item.id === undefined) {
       throw Error('removeItem : Invalid "item", "id" must not be "undefined"');
     }
@@ -633,10 +664,10 @@ export class Database {
       const data = JSON.parse(dbDataString);
       this.initializing = true;
       for (let i = 0, l = data.length; i < l; i += 1) {
-        const [label, ids, items] = data[i];
+        const [label, items]: [string, Item[]] = data[i];
         const table = new Table (label, this);
         for (let a = 0, b = items.length; a < b; a += 1) {
-          table.index.set(ids[a], items[a]);
+          table.index.set(items[a].id as string, items[a]);
         }
       }
       this.initializing = false;
@@ -676,9 +707,8 @@ export class Database {
       const data = new Array(tables.length);
       for (let i = 0, l = tables.length; i < l; i += 1) {
         const [label, table] = tables[i];
-        const ids = Array.from(table.index.keys());
         const items = Array.from(table.index.values());
-        data[i] = [label, ids, items];
+        data[i] = [label, items];
       }
       const dataString = this.saveAsFormatted ? JSON.stringify(data, null, 2) : JSON.stringify(data);
       await ftruncate(this.tempFd);

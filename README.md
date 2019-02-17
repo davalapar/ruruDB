@@ -231,5 +231,8 @@ import { Transaction } from 'rurudb';
 - 4.2.0 `¯\_(ツ)_/¯`
   - Add `Query().ids()`, `Query().items()` & `Query().entries()`
   - Prevent `Query()` mutation once any of `Query().ids()`, `Query().items()`, `Query().entries()` & `Query().results()` are already called
+- 5.0.0
+  - Add type checks to ensure parameters are plain objects
+  - Reduce db filesize (duplicate id entries)
 
 MIT | @davalapar
