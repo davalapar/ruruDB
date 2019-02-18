@@ -223,7 +223,7 @@ test('t17: Query firstId', async () => {
   await t17.insertItem (bobId, bobData);
   const fetchedAlice = new Query(t17)
     .eq('age', 25)
-    .firstitem();
+    .firstItem();
   expect(fetchedAlice).toStrictEqual(alice);
   // console.log({ ids, items });
   await t17.clearTable();
@@ -240,7 +240,7 @@ test('t18: Query firstId undefined', async () => {
   await t18.insertItem (bobId, bobData);
   const fetchedAlice = new Query(t18)
     .eq('age', 100)
-    .firstitem();
+    .firstItem();
   expect(fetchedAlice).toBe(undefined);
   // console.log({ ids, items });
   await t18.clearTable();
@@ -274,7 +274,7 @@ test('t20: Query firstId undefined', async () => {
   await t20.insertItem (bobId, bobData);
   const fetchedAliceId = new Query(t20)
     .eq('age', 100)
-    .firstitem();
+    .firstItem();
   expect(fetchedAliceId).toBe(undefined);
   // console.log({ ids, items });
   await t20.clearTable();

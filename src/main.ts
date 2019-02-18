@@ -218,7 +218,7 @@ export class Query <ExtendedItem extends Item> {
     if (this.finalized === false) this.finalize();
     return this.resultIds[0];
   }
-  public firstitem () : Item|undefined {
+  public firstItem () : Item|undefined {
     if (this.finalized === false) this.finalize();
     return this.resultItems[0];
   }

@@ -228,5 +228,7 @@ import { Query } from 'rurudb';
   - Add `Query().firstId()` and `Query().firstItem()`
 - 6.0.0
   - Remove `Transaction`, due to bugs introduced when involving `Query`
+- 6.1.0
+  - `Query().firstitem()` to `Query().firstItem()`
 
 MIT | @davalapar

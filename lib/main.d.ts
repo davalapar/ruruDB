@@ -37,7 +37,7 @@ export declare class Query<ExtendedItem extends Item> {
     ids(): string[];
     items(): Item[];
     firstId(): string | undefined;
-    firstitem(): Item | undefined;
+    firstItem(): Item | undefined;
     entries(): [string, Item][];
     results(): [string[], Item[]];
 }
