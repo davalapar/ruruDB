@@ -214,6 +214,14 @@ export class Query <ExtendedItem extends Item> {
     if (this.finalized === false) this.finalize();
     return this.resultItems;
   }
+  public firstId () : string|undefined {
+    if (this.finalized === false) this.finalize();
+    return this.resultIds[0];
+  }
+  public firstitem () : Item|undefined {
+    if (this.finalized === false) this.finalize();
+    return this.resultItems[0];
+  }
   public entries () : [string, Item][] {
     if (this.finalized === false) this.finalize();
     return this.resultItems.map((item) => [item.id, item] as [string, Item]);

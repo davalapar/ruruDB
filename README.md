@@ -122,6 +122,8 @@ import { Query } from 'rurudb';
 | `OK` | - | - | `Query().filterBy(filterFn)` | `Query()` | Filter by function, must return a `boolean` |
 | `OK` | - | - | `Query().ids()` | `string[]` | Return query result `ids[]` |
 | `OK` | - | - | `Query().items()` | `Item[]` | Return query result `items[]` |
+| `OK` | - | - | `Query().firstId()` | `string|undefined` | Returns first query result `id` |
+| `OK` | - | - | `Query().firstItem()` | `Item|undefined` | Return first query result `Item`` |
 | `OK` | - | - | `Query().entries()` | `[string, Item][]` | Return query result `[id, item]` pairs |
 | `OK` | - | - | `Query().results()` | `[string[],Item[]]` | Return query results `[id[], item[]]` separated |
 
@@ -234,5 +236,7 @@ import { Transaction } from 'rurudb';
 - 5.0.0
   - Add type checks to ensure parameters are plain objects
   - Reduce db filesize (duplicate id entries)
+- 5.0.1
+  - Add `Query().firstId()` and `Query().firstItem()`
 
 MIT | @davalapar

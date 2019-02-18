@@ -222,7 +222,7 @@ test('t15: Query eq', async () => {
   await t15.clearTable();
 });
 
-test('t16: Query eq', async () => {
+test('t16: Query neq', async () => {
   const t16 = new Table ('t16', db);
   await t16.clearTable();
   const aliceId = t16.randomItemId();
@@ -239,4 +239,72 @@ test('t16: Query eq', async () => {
   expect(items[0]).toStrictEqual(bob);
   // console.log({ ids, items });
   await t16.clearTable();
+});
+
+test('t17: Query firstId', async () => {
+  const t17 = new Table ('t17', db);
+  await t17.clearTable();
+  const aliceId = t17.randomItemId();
+  const aliceData = { name: 'alice', age: 25 };
+  const alice = await t17.insertItem (aliceId, aliceData);
+  const bobId = t17.randomItemId();
+  const bobData = { name: 'bob', age: 23 };
+  await t17.insertItem (bobId, bobData);
+  const fetchedAlice = new Query(t17)
+    .eq('age', 25)
+    .firstitem();
+  expect(fetchedAlice).toStrictEqual(alice);
+  // console.log({ ids, items });
+  await t17.clearTable();
+});
+
+test('t18: Query firstId undefined', async () => {
+  const t18 = new Table ('t18', db);
+  await t18.clearTable();
+  const aliceId = t18.randomItemId();
+  const aliceData = { name: 'alice', age: 25 };
+  const alice = await t18.insertItem (aliceId, aliceData);
+  const bobId = t18.randomItemId();
+  const bobData = { name: 'bob', age: 23 };
+  await t18.insertItem (bobId, bobData);
+  const fetchedAlice = new Query(t18)
+    .eq('age', 100)
+    .firstitem();
+  expect(fetchedAlice).toBe(undefined);
+  // console.log({ ids, items });
+  await t18.clearTable();
+});
+
+test('t19: Query firstId', async () => {
+  const t19 = new Table ('t19', db);
+  await t19.clearTable();
+  const aliceId = t19.randomItemId();
+  const aliceData = { name: 'alice', age: 25 };
+  await t19.insertItem (aliceId, aliceData);
+  const bobId = t19.randomItemId();
+  const bobData = { name: 'bob', age: 23 };
+  await t19.insertItem (bobId, bobData);
+  const fetchedAliceId = new Query(t19)
+    .eq('age', 25)
+    .firstId();
+  expect(fetchedAliceId).toStrictEqual(aliceId);
+  // console.log({ ids, items });
+  await t19.clearTable();
+});
+
+test('t20: Query firstId undefined', async () => {
+  const t20 = new Table ('t20', db);
+  await t20.clearTable();
+  const aliceId = t20.randomItemId();
+  const aliceData = { name: 'alice', age: 25 };
+  await t20.insertItem (aliceId, aliceData);
+  const bobId = t20.randomItemId();
+  const bobData = { name: 'bob', age: 23 };
+  await t20.insertItem (bobId, bobData);
+  const fetchedAliceId = new Query(t20)
+    .eq('age', 100)
+    .firstitem();
+  expect(fetchedAliceId).toBe(undefined);
+  // console.log({ ids, items });
+  await t20.clearTable();
 });
