@@ -4,10 +4,10 @@
 
 RuruDB is a document database with basic features for prototyping purposes.
 
-## Pros
+## Perks
 
 - Written in `TypeScript` & has tests with `Jest`
-- Asynchronous `Database`, `Table` & `Transaction` methods
+- Asynchronous `Database`, & `Table` methods
 - Synchronous `Query` methods, built-in
 - Uses low-level file descriptors for performance
 - Database file snapshots
@@ -144,17 +144,6 @@ import { Query } from 'rurudb';
 - Returned items are clones
 - Modifying them directly won't affect stored data, unless you use `Table.updateItem(item)` on them
 
-## `Transaction`
-
-```ts
-import { Transaction } from 'rurudb';
-```
-
-| Code | Tests | Async? | Functions | Returns | Description |
-|:-:|:-:|:-:|:--|:-|:--|
-| `OK` | - | - | `new Transaction(database)` | `Transaction()` | Creates a transaction against a database |
-| `OK` | - | `Yes` | `await Transaction().exec(execFn)` | `Promise<void>` | Executes and commits this Transaction |
-
 ## Item Interface Support
 
 - Supported Keys
@@ -196,7 +185,7 @@ import { Transaction } from 'rurudb';
   - Fix internal loading (file re-save interference)
 - 2.2.0
   - Fix bug on multiple same-table instances (existing table overwritten, no class instance re-use)
-  - Add internal checks in creating new tables & transactions to ensure database is initialized
+  - Add internal checks in creating new tables to ensure database is initialized
 - 2.2.1
   - Prevent multiple `Database().initialize()` calls
   - Add `mustExist` parameter for `new Table(label, database, mustExist)` and `Database().useTable(label, mustExist)`
@@ -209,7 +198,6 @@ import { Transaction } from 'rurudb';
   - Remove usage of Symbols and `// @ts-ignore` lines
   - Change `Table().getItemById(id)` to `Table().fetchItem(id)`
   - Remove `Table().getItemId(id)`
-  - Rewrite `Transaction`
   - Export `Item` interface
   - Implement database file recovery / loading
     - If the directory exists, check for files
@@ -238,5 +226,7 @@ import { Transaction } from 'rurudb';
   - Reduce db filesize (duplicate id entries)
 - 5.0.1
   - Add `Query().firstId()` and `Query().firstItem()`
+- 6.0.0
+  - Remove `Transaction`, due to bugs introduced when involving `Query`
 
 MIT | @davalapar

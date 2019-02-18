@@ -1,5 +1,5 @@
 
-import { Item, Database, Table, Query, Transaction } from '../src/main';
+import { Item, Database, Table, Query } from '../src/main';
 
 const db = new Database('test', './temp', false, '1s');
 
@@ -123,35 +123,6 @@ test('t10: removeTable ', async () => {
   await t10.clearTable();
 });
 
-test('t11: Transaction ', async () => {
-  const t11 = new Table ('t11', db);
-  await t11.clearTable();
-  const aliceId = t11.randomItemId();
-  const aliceData = { name: 'alice', age: 25 };
-  const bobId = t11.randomItemId();
-  const bobData = { name: 'bob', age: 26 };
-  const cathyId = t11.randomItemId();
-  const cathyData = { name: 'cathy', age: 27 };
-  const originalAlice = await t11.insertItem (aliceId, aliceData);
-  await t11.insertItem (cathyId, cathyData);
-  await new Transaction(db)
-    .exec((fetchTable) => {
-      const users = fetchTable('t11');
-      const fetchedAlice = users.fetchItem(aliceId);
-      expect(originalAlice.age).toBe(fetchedAlice.age);
-      expect(originalAlice.name).toBe(fetchedAlice.name);
-      fetchedAlice.age = 23;
-      users.updateItem(fetchedAlice);
-      const createdBob = users.insertItem(bobId, bobData);
-      users.removeItemById(cathyId);
-      users.removeItem(createdBob);
-    });
-  const latestAlice = t11.fetchItem(aliceId);
-  expect(latestAlice.age).toBe(23);
-  expect(t11.index.size).toBe(1);
-  await t11.clearTable();
-});
-
 const sleep = (timeout: number) : Promise<void> => new Promise(resolve => setTimeout(resolve, timeout));
 
 test('t12: abuse test case # 1 ', async () => {
@@ -263,7 +234,7 @@ test('t18: Query firstId undefined', async () => {
   await t18.clearTable();
   const aliceId = t18.randomItemId();
   const aliceData = { name: 'alice', age: 25 };
-  const alice = await t18.insertItem (aliceId, aliceData);
+  await t18.insertItem (aliceId, aliceData);
   const bobId = t18.randomItemId();
   const bobData = { name: 'bob', age: 23 };
   await t18.insertItem (bobId, bobData);

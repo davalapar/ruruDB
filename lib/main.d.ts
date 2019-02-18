@@ -41,27 +41,6 @@ export declare class Query<ExtendedItem extends Item> {
     entries(): [string, Item][];
     results(): [string[], Item[]];
 }
-export declare class PseudoTable<ExtendedItem extends Item> {
-    label: string;
-    index: Map<string, Item>;
-    refTable: Table<ExtendedItem>;
-    removedItemIds: Set<string>;
-    constructor(label: string, refTable: Table<ExtendedItem>);
-    randomItemId(): string;
-    insertItem(id: string, data: ExtendedItem): ExtendedItem;
-    updateItem(modified: ExtendedItem): void;
-    updateItemById(id: string, data: ExtendedItem): ExtendedItem;
-    mergeItemById(id: string, data: ExtendedItem): ExtendedItem;
-    removeItem(item: ExtendedItem): void;
-    removeItemById(id: string): void;
-    fetchItem(id: string): ExtendedItem;
-}
-export declare class Transaction {
-    private database;
-    private index;
-    constructor(database: Database);
-    exec(execFn: (fetchTable: <ExtendedItem extends Item>(label: string) => PseudoTable<ExtendedItem>) => void): Promise<void>;
-}
 export declare class Table<ExtendedItem extends Item> {
     label: string;
     private database;
