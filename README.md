@@ -232,5 +232,7 @@ import { Query } from 'rurudb';
   - `Query().firstitem()` to `Query().firstItem()`
 - 6.2.0
   - Fix faulty `Query().ascend()` & `Query().descend()`
+- 6.3.0
+  - Fix `Table().mergeItemById(id, data)`, new `item` not set in `Map`
 
 MIT | @davalapar

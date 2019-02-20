@@ -50,6 +50,9 @@ export class Query <ExtendedItem extends Item> {
   private hiddenFields: string[];
   private finalized: boolean;
   public constructor (table: Table <ExtendedItem> ) {
+    if (typeof table !== 'object') {
+      throw Error('Query constructor : Expecting "table" to be typeof "object"');
+    }
     this.resultIds = [];
     this.resultItems = [];
     this.slicedItems = Array.from(table.index.values());
@@ -322,6 +325,7 @@ export class Table <ExtendedItem extends Item> {
       ...existing,
       ...cloneDeep (data)
     };
+    this.index.set(id, item);
     await this.database.save();
     const copy = cloneDeep  (item);
     return copy;
