@@ -167,10 +167,10 @@ export class Query <ExtendedItem extends Item> {
             const [field, fieldDescend] = sort as [string, boolean];
             if (typeof a[field] !== typeof b[field]) { // If field of both slicedItems don't match: EXIT LOOP
               break;
-            } else if (typeof a[field] !== 'string' || typeof a[field] !== 'number') { // If both item fields are't "string" or "number": EXIT LOOP
+            } else if (typeof a[field] !== 'string' && typeof a[field] !== 'number') { // If both item fields are't "string" or "number": EXIT LOOP
               break;
             } else if (a[field] === b[field]) { // If value of both slicedItems are equal: SKIP SORT
-              continue;            
+              continue;
             } else if (typeof a[field] === 'string') {
               return compareString(a[field] as string, b[field] as string, fieldDescend as boolean);            
             } else if (typeof a[field] === 'number') {

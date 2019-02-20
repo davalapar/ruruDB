@@ -279,3 +279,24 @@ test('t20: Query firstId undefined', async () => {
   // console.log({ ids, items });
   await t20.clearTable();
 });
+
+test('t21: Query ascend descend', async () => {
+  const t21 = new Table ('t20', db);
+  await t21.clearTable();
+  const alice = await t21.insertItem (t21.randomItemId(), { name: 'alice', age: 25 });
+  const cathy = await t21.insertItem (t21.randomItemId(), { name: 'cathy', age: 23 });
+  const bob = await t21.insertItem (t21.randomItemId(), { name: 'bob', age: 24 });
+  const ascended = new Query(t21)
+    .ascend('age')
+    .items();
+  expect(ascended[0]).toStrictEqual(cathy);
+  expect(ascended[1]).toStrictEqual(bob);
+  expect(ascended[2]).toStrictEqual(alice);
+  const descended = new Query(t21)
+    .descend('age')
+    .items();
+  expect(descended[0]).toStrictEqual(alice);
+  expect(descended[1]).toStrictEqual(bob);
+  expect(descended[2]).toStrictEqual(cathy);
+  await t21.clearTable();
+});

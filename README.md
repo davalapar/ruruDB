@@ -230,5 +230,7 @@ import { Query } from 'rurudb';
   - Remove `Transaction`, due to bugs introduced when involving `Query`
 - 6.1.0
   - `Query().firstitem()` to `Query().firstItem()`
+- 6.2.0
+  - Fix faulty `Query().ascend()` & `Query().descend()`
 
 MIT | @davalapar
