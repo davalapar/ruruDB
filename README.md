@@ -234,5 +234,7 @@ import { Query } from 'rurudb';
   - Fix faulty `Query().ascend()` & `Query().descend()`
 - 6.3.0
   - Fix `Table().mergeItemById(id, data)`, new `item` not set in `Map`
+- 6.4.0
+  - Fix faulty `Query().select()` & `Query().hide()`
 
 MIT | @davalapar

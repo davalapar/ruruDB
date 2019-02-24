@@ -143,12 +143,12 @@ export class Query <ExtendedItem extends Item> {
     this.slicedItems = this.slicedItems.filter(item => Array.isArray(item[field]) && values.every(value => (item[field] as (AcceptedValues)[]).includes(value) === false));
     return this;
   }
-  public select (fields: string[]) : Query <ExtendedItem> {
+  public select (...fields: string[]) : Query <ExtendedItem> {
     if (this.finalized) throw Error('select : Query must not be finalized yet');
     this.selectedFields = fields.slice();
     return this;
   }
-  public hide (fields: string[]) : Query <ExtendedItem> {
+  public hide (...fields: string[]) : Query <ExtendedItem> {
     if (this.finalized) throw Error('hide : Query must not be finalized yet');
     this.hiddenFields = fields.slice();
     return this;
@@ -189,9 +189,9 @@ export class Query <ExtendedItem extends Item> {
     const resultItems: Item[] = new Array(this.slicedItems.length);
     for (let i = 0, l = this.slicedItems.length; i < l; i += 1) {
       const item = cloneDeep (this.slicedItems[i]);
-      resultIds[i] = item.id as string;
-      const itemFields = Object.keys(item);      
-      if (this.selectedFields.length > 1) {
+      resultIds[i] = item.id as string;     
+      if (this.selectedFields.length > 0) {
+        const itemFields = Object.keys(item); 
         for (let a = 0, b = itemFields.length; a < b; a += 1) { // For each item field
           const currentField = itemFields[a];
           if (this.selectedFields.includes(currentField) === false) { // If selected field includes field, DELETE

@@ -300,3 +300,27 @@ test('t21: Query ascend descend', async () => {
   expect(descended[2]).toStrictEqual(cathy);
   await t21.clearTable();
 });
+
+test('t22: Query hide', async () => {
+  const t22 = new Table ('t20', db);
+  await t22.clearTable();
+  await t22.insertItem (t22.randomItemId(), { name: 'alice', age: 25 });
+  const fetchedAlice = new Query(t22)
+    .hide('age')
+    .firstItem();
+  if (fetchedAlice === undefined) throw Error('fetchedAlice must not be undefined');
+  expect(fetchedAlice.age).toBe(undefined);
+  await t22.clearTable();
+});
+
+test('t23: Query select', async () => {
+  const t23 = new Table ('t20', db);
+  await t23.clearTable();
+  await t23.insertItem (t23.randomItemId(), { name: 'alice', age: 25 });
+  const fetchedAlice = new Query(t23)
+    .select('name')
+    .firstItem();
+  if (fetchedAlice === undefined) throw Error('fetchedAlice must not be undefined');
+  expect(fetchedAlice.age).toBe(undefined);
+  await t23.clearTable();
+});

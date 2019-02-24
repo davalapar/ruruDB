@@ -30,8 +30,8 @@ export declare class Query<ExtendedItem extends Item> {
     hasAllOf(field: string, values: (AcceptedValues)[]): Query<ExtendedItem>;
     hasNoneOfAny(field: string, values: (AcceptedValues)[]): Query<ExtendedItem>;
     hasNoneOfAll(field: string, values: (AcceptedValues)[]): Query<ExtendedItem>;
-    select(fields: string[]): Query<ExtendedItem>;
-    hide(fields: string[]): Query<ExtendedItem>;
+    select(...fields: string[]): Query<ExtendedItem>;
+    hide(...fields: string[]): Query<ExtendedItem>;
     filterBy(filterFn: (item: Item) => boolean): Query<ExtendedItem>;
     private finalize;
     ids(): string[];
