@@ -69,7 +69,7 @@ interface User {
   age: number;
 }
 
-const users = new Table <User> (db);
+const users = new Table <User> ('users', db);
 
 const alice = await users.insertItem(users.randomItemId(), {
   name: 'alice',
@@ -79,7 +79,7 @@ const alice = await users.insertItem(users.randomItemId(), {
 
 | Code | Tests | Async? | Table Functions | Returns | Description |
 |:-:|:-:|:-:|:--|:-|:--|
-| `OK` | - | - | `new Table <Item> (label, database, mustExist)` | `Table()` | Selects / creates a table |
+| `OK` | - | - | `new Table <Item> (label, database)` | `Table()` | Selects / creates a table |
 | `OK` | - | - | `Table().randomItemId()` | `string` | Returns a uuidv4 string id |
 | `OK` | - | `Yes` | `await Table().insertItem(id, data)` | `Promise<Item>` | Inserts an item into a table |
 | `OK` | - | `Yes` | `await Table().updateItem(modifiedItem)` | `Promise<void>` | Update / overwrite an item |
@@ -88,9 +88,38 @@ const alice = await users.insertItem(users.randomItemId(), {
 | `OK` | - | `Yes` | `await Table().removeItem(item)` | `Promise<void>` | Remove an item |
 | `OK` | - | `Yes` | `await Table().removeItemByID(id)` | `Promise<void>` | Remove an item, by ID |
 | `OK` | - | - | `Table().fetchItem(id)` | `Item` | Return an item, from ID |
-| `OK` | - | `Yes` | `await Table().clearTable()` | `Promise<void>` | Clear a table |
-| `OK` | - | `Yes` | `await Table().removeTable()` | `Promise<void>` | Remove  a table |
-| `OK` | - | - | `Table().createQuery()` | `Query()` | Creates a query against a table |
+| `OK` | - | `Yes` | `await Table().clear()` | `Promise<void>` | Clear a table |
+| `OK` | - | `Yes` | `await Table().destroy()` | `Promise<void>` | Remove  a table |
+| `OK` | - | - | `Table().query()` | `Query()` | Creates a query against a table |
+
+
+## `KVTable`
+
+```ts
+import { Database, KVTable } from 'rurudb';
+
+const db = new Database('mydbfile', './myfolder');
+await db.initialize();
+
+const settings = new KVTable <boolean> ('settings', db);
+
+await settings.set('somekey', 'somevalue');
+settings.has('somekey'); // true
+settings.get('somekey'); // 'somevalue'
+await settings.delete();
+settings.has('somekey'); // false
+await settings.clear();
+await settings.remove();
+```
+
+| Code | Tests | Async? | Table Functions | Returns | Description |
+|:-:|:-:|:-:|:--|:-|:--|
+| `OK` | - | - | `new KVTable <Value> (label, database)` | `Table()` | Selects / creates a table |
+| `OK` | - | `Yes` | `await KVTable().set(key, value)` | `Promise<void>` | Sets a key value |
+| `OK` | - | - | `KVTable().has(key)` | `boolean` | Checks key existence |
+| `OK` | - | - | `KVTable().get(key)` | `Value` | Gets key value |
+| `OK` | - | `Yes` | `await KVTable().clear()` | `Promise<void>` | Clears KVTable |
+| `OK` | - | `Yes` | `await KVTable().destroy()` | `Promise<void>` | Removes KVTable |
 
 ## `Query`
 
@@ -236,5 +265,15 @@ import { Query } from 'rurudb';
   - Fix `Table().mergeItemById(id, data)`, new `item` not set in `Map`
 - 6.4.0
   - Fix faulty `Query().select()` & `Query().hide()`
-
+- 7.0.0
+  - Added `KVTable()`
+  - Changed `Table().clearTable()` to `Table().clear()`
+  - Changed `Table().removeTable()` to `Table().destroy()`
+  - Changed `Table().createQuery()` to `Table().query()`
+  - Changed `Database().useTable()` to `Database().table(label)`
+  - Added `Database().kvtable(label)`
+  - Removed `mustExist` parameter on `new Table()`, now `new Table(id, database)`
+  - Added versioning on database files, load now checks for major semver version and expected db filename
+  - Snapshots now sourced from `main` instead of `old` file
+  - Fixed typos on Database pre-constructor
 MIT | @davalapar

@@ -45,7 +45,7 @@ export declare class Table<ExtendedItem extends Item> {
     label: string;
     private database;
     index: Map<string, Item>;
-    constructor(label: string, database: Database, mustExist?: boolean);
+    constructor(label: string, database: Database);
     randomItemId(): string;
     insertItem(id: string, data: ExtendedItem): Promise<ExtendedItem>;
     updateItem(modified: ExtendedItem): Promise<void>;
@@ -54,9 +54,21 @@ export declare class Table<ExtendedItem extends Item> {
     removeItem(item: ExtendedItem): Promise<void>;
     removeItemById(id: string): Promise<void>;
     fetchItem(id: string): ExtendedItem;
-    clearTable(): Promise<void>;
-    removeTable(): Promise<void>;
-    createQuery(): Query<ExtendedItem>;
+    clear(): Promise<void>;
+    destroy(): Promise<void>;
+    query(): Query<ExtendedItem>;
+}
+export declare class KVTable<Value> {
+    label: string;
+    private database;
+    index: Map<string, Value>;
+    constructor(label: string, database: Database);
+    set(key: string, value: Value): Promise<void>;
+    has(key: string): boolean;
+    get(key: string): Value;
+    delete(key: string): Promise<void>;
+    clear(): Promise<void>;
+    destroy(): Promise<void>;
 }
 export declare class Database {
     private filename;
@@ -66,14 +78,15 @@ export declare class Database {
     private old;
     private snapshotInterval;
     private lastSnapshotTimestamp;
-    index: Map<string, Table<Item>>;
+    tables: Map<string, Table<Item>>;
+    kvtables: Map<string, KVTable<unknown>>;
     private saving;
     private queue;
     private mainFd;
     private tempFd;
     private oldFd;
-    initializing: boolean;
     initialized: boolean;
+    initializing: boolean;
     private saveAsFormatted;
     private internalInitializePromise;
     constructor(filename: string, directory: string, saveAsFormatted?: boolean, snapshotInterval?: string);
@@ -83,6 +96,7 @@ export declare class Database {
     private internalSaveLoop;
     private internalSave;
     save(): Promise<void>;
-    useTable(label: string, mustExist: boolean): Table<Item>;
+    table(label: string): Table<Item>;
+    kvtable(label: string): KVTable<unknown>;
 }
 //# sourceMappingURL=main.d.ts.map

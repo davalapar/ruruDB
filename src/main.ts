@@ -239,19 +239,17 @@ export class Table <ExtendedItem extends Item> {
   public label: string;
   private database: Database;
   public index: Map<string, Item>;
-  public constructor (label: string, database: Database, mustExist?: boolean) {
+  public constructor (label: string, database: Database) {
     if (database.initialized === false && database.initializing === false) {
       throw Error('Cannot create table on non-initialized database.');
     }
     this.label = label;
     this.database = database;
     this.index = new Map();
-    if (database.index.has(label)) {
-      return database.index.get(label) as Table<ExtendedItem>;
-    } else if (mustExist === true) {
-      throw Error(`constructor : Table "${label}" with "mustExist=true" not found!`);
+    if (database.tables.has(label)) {
+      return database.tables.get(label) as Table<ExtendedItem>;
     }
-    database.index.set(label, this);
+    database.tables.set(label, this);
   }
   public randomItemId () : string {
     let id = uuidv4();
@@ -364,18 +362,88 @@ export class Table <ExtendedItem extends Item> {
     const copy = cloneDeep  (item as ExtendedItem);
     return copy;
   }
-  public async clearTable() : Promise<void> {
+  public async clear() : Promise<void> {
     this.index.clear();
     await this.database.save();
   }
-  public async removeTable() : Promise<void> {
-    this.database.index.delete(this.label);
+  public async destroy() : Promise<void> {
+    this.database.tables.delete(this.label);
     await this.database.save();
   }
-  public createQuery () : Query <ExtendedItem> {
+  public query () : Query <ExtendedItem> {
     return new Query(this);
   }
 }
+
+
+export class KVTable <Value> {
+  public label: string;
+  private database: Database;
+  public index: Map<string, Value>;
+  public constructor (label: string, database: Database) {
+    if (database.initialized === false && database.initializing === false) {
+      throw Error('Cannot create KVTable on non-initialized database.');
+    }
+    this.label = label;
+    this.database = database;
+    this.index = new Map();
+    if (database.kvtables.has(label)) {
+      return database.kvtables.get(label) as KVTable<Value>;
+    }
+    database.kvtables.set(label, this);
+  }
+  public async set (key: string, value: Value) : Promise<void> {
+    if (key === undefined) {
+      throw Error('set : Invalid "key", "key" must not be "undefined"');
+    }
+    if (typeof key !== 'string') {
+      throw Error('set : Invalid "key", "key" must be typeof "string"');
+    }
+    this.index.set(key, value);
+    await this.database.save();
+  }
+  public has (key: string) : boolean {
+    if (key === undefined) {
+      throw Error('set : Invalid "key", "key" must not be "undefined"');
+    }
+    if (typeof key !== 'string') {
+      throw Error('set : Invalid "key", "key" must be typeof "string"');
+    }
+    return this.index.has(key);
+  }
+  public get (key: string) : Value {
+    if (key === undefined) {
+      throw Error('get : Invalid "key", "key" must not be "undefined"');
+    }
+    if (typeof key !== 'string') {
+      throw Error('set : Invalid "key", "key" must be typeof "string"');
+    }
+    if (this.index.has(key) === false) {
+      throw Error('get : Invalid "key", "key" must exist in KVTable');
+    }
+    return this.index.get(key) as Value;
+  }
+  public async delete (key: string) : Promise<void> {
+    if (key === undefined) {
+      throw Error('set : Invalid "key", "key" must not be "undefined"');
+    }
+    if (typeof key !== 'string') {
+      throw Error('set : Invalid "key", "key" must be typeof "string"');
+    }
+    this.index.delete(key);
+    await this.database.save();
+  }
+  public async clear() : Promise<void> {
+    this.index.clear();
+    await this.database.save();
+  }
+  public async destroy() : Promise<void> {
+    this.database.kvtables.delete(this.label);
+    await this.database.save();
+  }
+}
+
+const rurudbVersion = 7;
 
 // Database
 export class Database {
@@ -386,14 +454,15 @@ export class Database {
   private old: string;
   private snapshotInterval: number;
   private lastSnapshotTimestamp: number;
-  public index: Map<string, Table <Item>>; // eslint-disable-line
-  private saving = false;
-  private queue: [Function, Function][] = [];
+  public tables: Map<string, Table <Item>>;
+  public kvtables: Map<string, KVTable<unknown>>;
+  private saving: boolean;
+  private queue: [Function, Function][];
   private mainFd: number;
   private tempFd: number;
   private oldFd: number;
-  public initializing: boolean;
   public initialized: boolean;
+  public initializing: boolean;
   private saveAsFormatted: boolean;
   private internalInitializePromise: Promise<void>|undefined;
   public constructor (filename: string, directory: string, saveAsFormatted ?: boolean, snapshotInterval?: string) {
@@ -402,7 +471,8 @@ export class Database {
     this.main = directory.concat('/', filename, '.rrdb');
     this.temp = directory.concat('/', filename, '.rrdb.temp');
     this.old = directory.concat('/', filename, '.rrdb.old');
-    this.index = new Map();
+    this.tables = new Map();
+    this.kvtables = new Map();
     this.snapshotInterval = snapshotInterval ? ms(snapshotInterval) : Infinity;
     this.lastSnapshotTimestamp = -Infinity;
     this.saving = false;
@@ -413,8 +483,8 @@ export class Database {
     this.mainFd = 0;
     this.tempFd = 0;
     this.oldFd = 0;
-    this.initializing = false;
     this.initialized = false;
+    this.initializing = false;
     this.saveAsFormatted = saveAsFormatted === undefined ? false : saveAsFormatted;
   }
   public async initialize () : Promise<void> {
@@ -431,7 +501,8 @@ export class Database {
     }
   }
   private async internalLoad () : Promise<void> {
-    this.index.clear();
+    this.tables.clear();
+    this.kvtables.clear();
     let dbDataString = '';
     if (await exists(this.directory)) {
       if (await exists(this.main)) {
@@ -483,12 +554,27 @@ export class Database {
     if (dbDataString !== '') {
       console.log(`internalLoad : database file loaded, populating tables.`);
       const data = JSON.parse(dbDataString);
+      const [dataMeta, dataTables, dataKVTables] = data;
+      const [filenameLoaded, rurudbVersionLoaded] = dataMeta;
+      if (filenameLoaded !== this.filename) {
+        throw Error(`internalLoad : filename mismatch, ${filenameLoaded} !== ${this.filename}`);
+      }
+      if (rurudbVersionLoaded !== rurudbVersion) {
+        throw Error(`internalLoad : rurudbVersion mismatch, ${rurudbVersionLoaded} !== ${rurudbVersion}`);
+      }
       this.initializing = true;
-      for (let i = 0, l = data.length; i < l; i += 1) {
-        const [label, items]: [string, Item[]] = data[i];
+      for (let i = 0, l = dataTables.length; i < l; i += 1) {
+        const [label, items]: [string, Item[]] = dataTables[i];
         const table = new Table (label, this);
         for (let a = 0, b = items.length; a < b; a += 1) {
           table.index.set(items[a].id as string, items[a]);
+        }
+      }
+      for (let i = 0, l = dataKVTables.length; i < l; i += 1) {
+        const [label, keys, values]: [string, unknown[], unknown[]] = dataKVTables[i];
+        const kvtable = new KVTable <unknown> (label, this);
+        for (let a = 0, b = keys.length; a < b; a += 1) {
+          kvtable.index.set(keys[a] as string, values[a]);
         }
       }
       this.initializing = false;
@@ -524,21 +610,42 @@ export class Database {
     this.queue = [];
     let error: Error|undefined = undefined;;
     try {
-      const tables = Array.from(this.index.entries());
-      const data = new Array(tables.length);
+
+      const tables = Array.from(this.tables.entries());
+      const dataTables = new Array(tables.length);
       for (let i = 0, l = tables.length; i < l; i += 1) {
         const [label, table] = tables[i];
         const items = Array.from(table.index.values());
-        data[i] = [label, items];
+        dataTables[i] = [label, items];
       }
+
+      const kvtables = Array.from(this.kvtables.entries());
+      const dataKVTables = new Array(kvtables.length);
+      for (let i = 0, l = kvtables.length; i < l; i += 1) {
+        const [label, kvtable] = kvtables[i];
+        const keys = Array.from(kvtable.index.keys());
+        const values = Array.from(kvtable.index.values());
+        dataKVTables[i] = [label, keys, values];
+      }
+
+      const filename = this.filename;
+      const dataMeta = [filename, rurudbVersion];
+
+      const data = [
+        dataMeta,
+        dataTables,
+        dataKVTables,
+      ];
+
       const dataString = this.saveAsFormatted ? JSON.stringify(data, null, 2) : JSON.stringify(data);
       await ftruncate(this.tempFd);
       await write(this.tempFd, dataString, 0, 'utf8');
 
-      const oldStat = await fstat(this.oldFd);
-      if (oldStat.size > 0) {
-        const modified = oldStat.mtime;
+      const mainStat = await fstat(this.mainFd);
+      if (mainStat.size > 0) {
+        const modified = mainStat.mtime;
         const current = new Date();
+        let mainContent = undefined;;
         if (
           current.valueOf() - modified.valueOf() >= this.snapshotInterval
           && current.valueOf() - this.lastSnapshotTimestamp >= this.snapshotInterval
@@ -547,17 +654,19 @@ export class Database {
             this.directory, '/',
             this.filename, '_',
             dateToString(current),
-            '.rrdb.old');
-          const oldContent = Buffer.alloc(oldStat.size);
-          await read(this.oldFd, oldContent, 0, oldStat.size, 0);
-          await writeFile(snapshot, oldContent, 'utf8');
+            '.rrdb.old',
+          );
+          const snapshotFd = await open(snapshot, 'w');;
+          mainContent = Buffer.alloc(mainStat.size);
+          await read(this.mainFd, mainContent, 0, mainStat.size, 0);
+          await write(snapshotFd, mainContent, 0, mainStat.size, 0);
+          await close(snapshotFd);
           this.lastSnapshotTimestamp = current.valueOf();
         }
-      }
-      const mainStat = await fstat(this.mainFd);
-      if (mainStat.size > 0) {
-        const mainContent = Buffer.alloc(mainStat.size);
-        await read(this.mainFd, mainContent, 0, mainStat.size, 0);
+        if (mainContent === undefined) {
+          mainContent = Buffer.alloc(mainStat.size);
+          await read(this.mainFd, mainContent, 0, mainStat.size, 0);
+        }
         await ftruncate(this.oldFd);
         await write(this.oldFd, mainContent, 0, mainStat.size, 0);
       }
@@ -602,8 +711,18 @@ export class Database {
     }
     await this.internalSave();
   }
-  public useTable (label: string, mustExist: boolean) : Table <Item> {
-    const table = new Table  (label, this, mustExist);
+  public table (label: string) : Table <Item> {
+    if (this.tables.has(label) === false) {
+      throw Error(`table : "${label}" Table not found, must exist`);
+    }
+    const table = new Table (label, this);
     return table;
+  }
+  public kvtable (label: string) : KVTable <unknown> {
+    if (this.kvtables.has(label) === false) {
+      throw Error(`kvtable : "${label}" KVTable not found, must exist`);
+    }
+    const kvtable = new KVTable (label, this);
+    return kvtable;
   }
 }
