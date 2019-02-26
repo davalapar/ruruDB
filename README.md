@@ -276,4 +276,5 @@ import { Query } from 'rurudb';
   - Added versioning on database files, load now checks for major semver version and expected db filename
   - Snapshots now sourced from `main` instead of `old` file
   - Fixed typos on Database pre-constructor
+
 MIT | @davalapar
