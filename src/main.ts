@@ -18,6 +18,7 @@ import uuidv4 from 'uuid/v4';
 import ms from 'ms';
 
 import tinydate from 'tinydate';
+import MessagePack from 'what-the-pack';
 
 export type AcceptedValues = string|number|boolean|null|undefined;
 
@@ -51,7 +52,7 @@ export class Query <ExtendedItem extends Item> {
   private finalized: boolean;
   public constructor (table: Table <ExtendedItem> ) {
     if (typeof table !== 'object') {
-      throw Error('Query constructor : Expecting "table" to be typeof "object"');
+      throw Error('@constructor : Expecting "table" to be typeof "object"');
     }
     this.resultIds = [];
     this.resultItems = [];
@@ -64,97 +65,97 @@ export class Query <ExtendedItem extends Item> {
     this.finalized = false;
   }
   public offset (value: number) : Query <ExtendedItem> {
-    if (this.finalized) throw Error('offset : Query must not be finalized yet');
+    if (this.finalized) throw Error('@offset : Query must not be finalized yet');
     this.queryOffset = value;
     return this;
   }
   public limit (value: number) : Query <ExtendedItem> {
-    if (this.finalized) throw Error('limit : Query must not be finalized yet');
+    if (this.finalized) throw Error('@limit : Query must not be finalized yet');
     this.queryLimit = value;
     return this;
   }
   public ascend (field: string) : Query <ExtendedItem> {
-    if (this.finalized) throw Error('ascend : Query must not be finalized yet');
+    if (this.finalized) throw Error('@ascend : Query must not be finalized yet');
     this.sorts.push([field, false]);
     return this;
   }
   public descend (field: string) : Query <ExtendedItem> {
-    if (this.finalized) throw Error('descend : Query must not be finalized yet');
+    if (this.finalized) throw Error('@descend : Query must not be finalized yet');
     this.sorts.push([field, true]);
     return this;
   }
   public sortBy (sortFn: (a: Item, b: Item) => number) : Query <ExtendedItem> {
-    if (this.finalized) throw Error('sortBy : Query must not be finalized yet');
+    if (this.finalized) throw Error('@sortBy : Query must not be finalized yet');
     this.sorts.push([sortFn]);
     return this;
   }
   public gt (field: string, value: number) : Query <ExtendedItem> {
-    if (this.finalized) throw Error('gt : Query must not be finalized yet');
+    if (this.finalized) throw Error('@gt : Query must not be finalized yet');
     this.slicedItems = this.slicedItems.filter(item => Number.isFinite(item[field] as number) && item[field] as number > value);
     return this;
   }
   public gte (field: string, value: number) : Query <ExtendedItem> {
-    if (this.finalized) throw Error('gte : Query must not be finalized yet');
+    if (this.finalized) throw Error('@gte : Query must not be finalized yet');
     this.slicedItems = this.slicedItems.filter(item => Number.isFinite(item[field] as number) && item[field] as number >= value);
     return this;
   }
   public lt (field: string, value: number) : Query <ExtendedItem> {
-    if (this.finalized) throw Error('lt : Query must not be finalized yet');  
+    if (this.finalized) throw Error('@lt : Query must not be finalized yet');  
     this.slicedItems = this.slicedItems.filter(item => Number.isFinite(item[field] as number) && item[field] as number < value);
     return this;
   }
   public lte (field: string, value: number) : Query <ExtendedItem> {
-    if (this.finalized) throw Error('lte : Query must not be finalized yet');
+    if (this.finalized) throw Error('@lte : Query must not be finalized yet');
     this.slicedItems = this.slicedItems.filter(item => Number.isFinite(item[field] as number) && item[field] as number <= value);
     return this;
   }
   public eq (field: string, value: number) : Query <ExtendedItem> {
-    if (this.finalized) throw Error('eq : Query must not be finalized yet');
+    if (this.finalized) throw Error('@eq : Query must not be finalized yet');
     this.slicedItems = this.slicedItems.filter(item => item[field] === value);
     return this;
   }
   public neq (field: string, value: number) : Query <ExtendedItem> {
-    if (this.finalized) throw Error('neq : Query must not be finalized yet');
+    if (this.finalized) throw Error('@neq : Query must not be finalized yet');
     this.slicedItems = this.slicedItems.filter(item => item[field] !== value);
     return this;
   }
   public has (field: string, value: (AcceptedValues)) : Query <ExtendedItem> {
-    if (this.finalized) throw Error('has : Query must not be finalized yet');
+    if (this.finalized) throw Error('@has : Query must not be finalized yet');
     this.slicedItems = this.slicedItems.filter(item => Array.isArray(item[field]) && (item[field] as (AcceptedValues)[]).includes(value));
     return this;
   }
   public hasAnyOf (field: string, values: (AcceptedValues)[]) : Query <ExtendedItem> {
-    if (this.finalized) throw Error('hasAnyOf : Query must not be finalized yet');
+    if (this.finalized) throw Error('@hasAnyOf : Query must not be finalized yet');
     this.slicedItems = this.slicedItems.filter(item => Array.isArray(item[field]) && values.some(value => (item[field] as (AcceptedValues)[]).includes(value)));
     return this;
   }
   public hasAllOf (field: string, values: (AcceptedValues)[]) : Query <ExtendedItem> {
-    if (this.finalized) throw Error('hasAllOf : Query must not be finalized yet');
+    if (this.finalized) throw Error('@hasAllOf : Query must not be finalized yet');
     this.slicedItems = this.slicedItems.filter(item => Array.isArray(item[field]) && values.every(value => (item[field] as (AcceptedValues)[]).includes(value)));
     return this;
   }
   public hasNoneOfAny (field: string, values: (AcceptedValues)[]) : Query <ExtendedItem> {
-    if (this.finalized) throw Error('hasNoneOfAny : Query must not be finalized yet');  
+    if (this.finalized) throw Error('@hasNoneOfAny : Query must not be finalized yet');  
     this.slicedItems = this.slicedItems.filter(item => Array.isArray(item[field]) && values.some(value => (item[field] as (AcceptedValues)[]).includes(value) === false));
     return this;
   }
   public hasNoneOfAll (field: string, values: (AcceptedValues)[]) : Query <ExtendedItem> {
-    if (this.finalized) throw Error('hasNoneOfAll : Query must not be finalized yet');
+    if (this.finalized) throw Error('@hasNoneOfAll : Query must not be finalized yet');
     this.slicedItems = this.slicedItems.filter(item => Array.isArray(item[field]) && values.every(value => (item[field] as (AcceptedValues)[]).includes(value) === false));
     return this;
   }
   public select (...fields: string[]) : Query <ExtendedItem> {
-    if (this.finalized) throw Error('select : Query must not be finalized yet');
+    if (this.finalized) throw Error('@select : Query must not be finalized yet');
     this.selectedFields = fields.slice();
     return this;
   }
   public hide (...fields: string[]) : Query <ExtendedItem> {
-    if (this.finalized) throw Error('hide : Query must not be finalized yet');
+    if (this.finalized) throw Error('@hide : Query must not be finalized yet');
     this.hiddenFields = fields.slice();
     return this;
   }
   public filterBy (filterFn: (item: Item) => boolean) : Query <ExtendedItem> {
-    if (this.finalized) throw Error('filterBy : Query must not be finalized yet');
+    if (this.finalized) throw Error('@filterBy : Query must not be finalized yet');
     this.slicedItems = this.slicedItems.filter(item => filterFn(item));
     return this;
   }
@@ -241,7 +242,7 @@ export class Table <ExtendedItem extends Item> {
   public index: Map<string, Item>;
   public constructor (label: string, database: Database) {
     if (database.initialized === false && database.initializing === false) {
-      throw Error('Cannot create table on non-initialized database.');
+      throw Error('@constructor : Cannot create table on non-initialized database.');
     }
     this.label = label;
     this.database = database;
@@ -260,10 +261,10 @@ export class Table <ExtendedItem extends Item> {
   }
   public async insertItem (id: string, data : ExtendedItem) : Promise<ExtendedItem> {
     if (isPlainObject(data) === false) {
-      throw Error('insertItem : Invalid "data", "data" must be a plain object');
+      throw Error('@insertItem : Invalid "data", "data" must be a plain object');
     }
     if (this.index.has(id)) {
-      throw Error('insertItem : Invalid "id", must not exist in table');
+      throw Error('@insertItem : Invalid "id", must not exist in table');
     }
     const item = {
       id,
@@ -276,13 +277,13 @@ export class Table <ExtendedItem extends Item> {
   }
   public async updateItem (modified: ExtendedItem) : Promise<void> {
     if (isPlainObject(modified) === false) {
-      throw Error('updateItem : Invalid "modified", "modified" must be a plain object');
+      throw Error('@updateItem : Invalid "modified", "modified" must be a plain object');
     }
     if (modified.id === undefined) {
-      throw Error('updateItem : Invalid "item", "id" must not be "undefined"');
+      throw Error('@updateItem : Invalid "item", "id" must not be "undefined"');
     }
     if (this.index.has(modified.id) === false) {
-      throw Error('updateItem : Invalid "item", item "id" must exist in table');
+      throw Error('@updateItem : Invalid "item", item "id" must exist in table');
     }
     const item = cloneDeep  (modified);
     this.index.set(item.id as string, item);
@@ -290,13 +291,13 @@ export class Table <ExtendedItem extends Item> {
   }
   public async updateItemById (id: string, data: ExtendedItem) : Promise<ExtendedItem> {
     if (isPlainObject(data) === false) {
-      throw Error('updateItemById : Invalid "data", "data" must be a plain object');
+      throw Error('@updateItemById : Invalid "data", "data" must be a plain object');
     }
     if (data.id !== undefined) {
-      throw Error('updateItemById : Invalid "data", "id" must be "undefined"');
+      throw Error('@updateItemById : Invalid "data", "id" must be "undefined"');
     }
     if (this.index.has(id) === false) {
-      throw Error('updateItemById : Invalid "id", must exist in table');
+      throw Error('@updateItemById : Invalid "id", must exist in table');
     }
     const item = {
       id,
@@ -309,13 +310,13 @@ export class Table <ExtendedItem extends Item> {
   }
   public async mergeItemById (id: string, data: ExtendedItem) : Promise<ExtendedItem> {
     if (isPlainObject(data) === false) {
-      throw Error('mergeItemById : Invalid "data", "data" must be a plain object');
+      throw Error('@mergeItemById : Invalid "data", "data" must be a plain object');
     }
     if (data.id !== undefined) {
-      throw Error('mergeItemById : Invalid "data", "id" must be "undefined"');
+      throw Error('@mergeItemById : Invalid "data", "id" must be "undefined"');
     }
     if (this.index.has(id) === false) {
-      throw Error('mergeItemById : Invalid "item", "id" must exist in table');
+      throw Error('@mergeItemById : Invalid "item", "id" must exist in table');
     }
     const existing = this.index.get(id);
     const item = {
@@ -330,33 +331,33 @@ export class Table <ExtendedItem extends Item> {
   }
   public async removeItem (item: ExtendedItem) : Promise<void> {
     if (isPlainObject(item) === false) {
-      throw Error('removeItem : Invalid "item", "item" must be a plain object');
+      throw Error('@removeItem : Invalid "item", "item" must be a plain object');
     }
     if (item.id === undefined) {
-      throw Error('removeItem : Invalid "item", "id" must not be "undefined"');
+      throw Error('@removeItem : Invalid "item", "id" must not be "undefined"');
     }
     if (this.index.has(item.id) === false) {
-      throw Error('removeItem : Invalid "item", "id" must exist in table');
+      throw Error('@removeItem : Invalid "item", "id" must exist in table');
     }
     this.index.delete(item.id);
     await this.database.save();
   }
   public async removeItemById (id: string) : Promise<void> {
     if (id === undefined) {
-      throw Error('removeItemById : Invalid "id", "id" must not be "undefined"');
+      throw Error('@removeItemById : Invalid "id", "id" must not be "undefined"');
     }
     if (this.index.has(id) === false) {
-      throw Error('removeItemById : Invalid "id", "id" must exist in table');
+      throw Error('@removeItemById : Invalid "id", "id" must exist in table');
     }
     this.index.delete(id);
     await this.database.save();
   }
   public fetchItem (id: string) : ExtendedItem {
     if (id === undefined) {
-      throw Error('fetchItem : Invalid "id", "id" must not be "undefined"');
+      throw Error('@fetchItem : Invalid "id", "id" must not be "undefined"');
     }
     if (this.index.has(id) === false) {
-      throw Error('fetchItem : Invalid "item", "id" must exist in table');
+      throw Error('@fetchItem : Invalid "item", "id" must exist in table');
     }
     const item = this.index.get(id);
     const copy = cloneDeep  (item as ExtendedItem);
@@ -382,7 +383,7 @@ export class KVTable <Value> {
   public index: Map<string, Value>;
   public constructor (label: string, database: Database) {
     if (database.initialized === false && database.initializing === false) {
-      throw Error('Cannot create KVTable on non-initialized database.');
+      throw Error('@Cannot create KVTable on non-initialized database.');
     }
     this.label = label;
     this.database = database;
@@ -394,41 +395,41 @@ export class KVTable <Value> {
   }
   public async set (key: string, value: Value) : Promise<void> {
     if (key === undefined) {
-      throw Error('set : Invalid "key", "key" must not be "undefined"');
+      throw Error('@set : Invalid "key", "key" must not be "undefined"');
     }
     if (typeof key !== 'string') {
-      throw Error('set : Invalid "key", "key" must be typeof "string"');
+      throw Error('@set : Invalid "key", "key" must be typeof "string"');
     }
     this.index.set(key, value);
     await this.database.save();
   }
   public has (key: string) : boolean {
     if (key === undefined) {
-      throw Error('set : Invalid "key", "key" must not be "undefined"');
+      throw Error('@set : Invalid "key", "key" must not be "undefined"');
     }
     if (typeof key !== 'string') {
-      throw Error('set : Invalid "key", "key" must be typeof "string"');
+      throw Error('@set : Invalid "key", "key" must be typeof "string"');
     }
     return this.index.has(key);
   }
   public get (key: string) : Value {
     if (key === undefined) {
-      throw Error('get : Invalid "key", "key" must not be "undefined"');
+      throw Error('@get : Invalid "key", "key" must not be "undefined"');
     }
     if (typeof key !== 'string') {
-      throw Error('set : Invalid "key", "key" must be typeof "string"');
+      throw Error('@set : Invalid "key", "key" must be typeof "string"');
     }
     if (this.index.has(key) === false) {
-      throw Error('get : Invalid "key", "key" must exist in KVTable');
+      throw Error('@get : Invalid "key", "key" must exist in KVTable');
     }
     return this.index.get(key) as Value;
   }
   public async delete (key: string) : Promise<void> {
     if (key === undefined) {
-      throw Error('set : Invalid "key", "key" must not be "undefined"');
+      throw Error('@set : Invalid "key", "key" must not be "undefined"');
     }
     if (typeof key !== 'string') {
-      throw Error('set : Invalid "key", "key" must be typeof "string"');
+      throw Error('@set : Invalid "key", "key" must be typeof "string"');
     }
     this.index.delete(key);
     await this.database.save();
@@ -446,12 +447,21 @@ export class KVTable <Value> {
 const rurudbVersion = 7;
 
 // Database
+interface DatabaseOptions {
+  filename: string;
+  directory: string;
+  saveFormat: "json"|"msgpack"|"readable_json";
+  snapshotInterval?: string;
+  msgpackBufferSize?: number;
+  logFunction?: Function;
+}
+
 export class Database {
   private filename: string;
   private directory: string;
   private main: string;
   private temp: string;
-  private old: string;
+  private recent: string;
   private snapshotInterval: number;
   private lastSnapshotTimestamp: number;
   public tables: Map<string, Table <Item>>;
@@ -460,20 +470,65 @@ export class Database {
   private queue: [Function, Function][];
   private mainFd: number;
   private tempFd: number;
-  private oldFd: number;
+  private recentFd: number;
   public initialized: boolean;
   public initializing: boolean;
-  private saveAsFormatted: boolean;
+  private saveFormat: "json"|"msgpack"|"readable_json";
+  private msgpackEncode: Function|undefined;
+  private msgpackDecode: Function|undefined;
+  private snapshotExtension: string;
   private internalInitializePromise: Promise<void>|undefined;
-  public constructor (filename: string, directory: string, saveAsFormatted ?: boolean, snapshotInterval?: string) {
-    this.filename = filename;
-    this.directory = directory;
-    this.main = directory.concat('/', filename, '.rrdb');
-    this.temp = directory.concat('/', filename, '.rrdb.temp');
-    this.old = directory.concat('/', filename, '.rrdb.old');
+  private logFunction: Function|undefined;
+  public constructor (options: DatabaseOptions) {
+    this.logFunction = options.logFunction;
+    this.filename = options.filename;
+    this.directory = options.directory;
+    switch (options.saveFormat) {
+      case "json": {
+        this.main = options.directory.concat('/', options.filename, '-current.rrdb');
+        this.temp = options.directory.concat('/', options.filename, '-temp.rrdb');
+        this.recent = options.directory.concat('/', options.filename, '-recent.rrdb');
+        this.snapshotExtension = '-snapshot.rrdb';
+        break;
+      }
+      case "readable_json": {
+        this.main = options.directory.concat('/', options.filename, '-current.rrdb');
+        this.temp = options.directory.concat('/', options.filename, '-temp.rrdb');
+        this.recent = options.directory.concat('/', options.filename, '-recent.rrdb');
+        this.snapshotExtension = '-snapshot.rrdb';
+        break;
+      }
+      case "msgpack": {
+        this.main = options.directory.concat('/', options.filename, '-current.prrdb');
+        this.temp = options.directory.concat('/', options.filename, '-temp.prrdb');
+        this.recent = options.directory.concat('/', options.filename, '-recent.prrdb');
+        this.snapshotExtension = '-snapshot.prrdb';
+        if (options.msgpackBufferSize === undefined) {
+          throw Error('@constructor : options.msgpackBufferSize must be a "number"');
+        }
+        if (options.logFunction !== undefined) {
+          if (typeof options.logFunction !== 'function') {
+            throw Error('@constructor : options.logFunction must be a "function"');
+          }
+          const { encode: msgpackEncode, decode: msgpackDecode } = MessagePack.initialize(options.msgpackBufferSize, options.logFunction);
+          this.msgpackEncode = msgpackEncode;
+          this.msgpackDecode = msgpackDecode;
+        } else {
+          const { encode: msgpackEncode, decode: msgpackDecode } = MessagePack.initialize(options.msgpackBufferSize);
+          this.msgpackEncode = msgpackEncode;
+          this.msgpackDecode = msgpackDecode;
+        }
+        break;
+      }
+      default:{
+        throw Error('@constructor : options.saveFormat must be either "json", "readable_json" or "msgpack"');
+      }
+    }
+    this.saveFormat = options.saveFormat;
+    
     this.tables = new Map();
     this.kvtables = new Map();
-    this.snapshotInterval = snapshotInterval ? ms(snapshotInterval) : Infinity;
+    this.snapshotInterval = options.snapshotInterval ? ms(options.snapshotInterval) : Infinity;
     this.lastSnapshotTimestamp = -Infinity;
     this.saving = false;
     this.queue = [];
@@ -482,10 +537,9 @@ export class Database {
     this.internalSaveLoop = this.internalSaveLoop.bind(this);
     this.mainFd = 0;
     this.tempFd = 0;
-    this.oldFd = 0;
+    this.recentFd = 0;
     this.initialized = false;
     this.initializing = false;
-    this.saveAsFormatted = saveAsFormatted === undefined ? false : saveAsFormatted;
   }
   public async initialize () : Promise<void> {
     if (this.initialized === false) {
@@ -503,64 +557,70 @@ export class Database {
   private async internalLoad () : Promise<void> {
     this.tables.clear();
     this.kvtables.clear();
-    let dbDataString = '';
+    let dbDataString: Buffer = Buffer.alloc(0);
     if (await exists(this.directory)) {
       if (await exists(this.main)) {
         this.mainFd = await open(this.main, 'r');
         const mainStat = await fstat(this.mainFd);
         if (mainStat.size > 0) {
-          console.log(`internalLoad : Loading from ${this.main}`);
+          if (this.logFunction !== undefined) this.logFunction(`@internalLoad : Loading from ${this.main}`);
           const mainContent = Buffer.alloc(mainStat.size);
           await read(this.mainFd, mainContent, 0, mainStat.size, 0);
-          dbDataString = mainContent.toString();
+          dbDataString = mainContent;
         } else {
-          console.log(`internalLoad : ${this.main} empty, possibly corrupted.`);
+          if (this.logFunction !== undefined) this.logFunction(`@internalLoad : ${this.main} empty, possibly corrupted.`);
         }
         await close(this.mainFd);
       } else {
-        console.log(`internalLoad : ${this.main} not found.`);
+        if (this.logFunction !== undefined) this.logFunction(`@internalLoad : ${this.main} not found.`);
         if (await exists(this.temp)) {
           this.tempFd = await open(this.temp, 'r');
           const tempStat = await fstat(this.tempFd);
           if (tempStat.size > 0) {
-            console.log(`internalLoad : Loading from ${this.temp}`);
+            if (this.logFunction !== undefined) this.logFunction(`@internalLoad : Loading from ${this.temp}`);
             const tempContent = Buffer.alloc(tempStat.size);
             await read(this.tempFd, tempContent, 0, tempStat.size, 0);
-            dbDataString = tempContent.toString();
+            dbDataString = tempContent;
           } else {
-            console.log(`internalLoad : ${this.temp} empty, possibly corrupted.`);
+            if (this.logFunction !== undefined) this.logFunction(`@internalLoad : ${this.temp} empty, possibly corrupted.`);
           }
           await close(this.tempFd);
         } else {
-          console.log(`internalLoad : ${this.temp} not found.`);
-          if (await exists(this.old)) {
-            this.oldFd = await open(this.old, 'r');
-            const oldStat = await fstat(this.oldFd);
-            if (oldStat.size > 0) {
-              console.log(`internalLoad : Loading from ${this.old}`);
-              const tempContent = Buffer.alloc(oldStat.size);
-              await read(this.oldFd, tempContent, 0, oldStat.size, 0);
-              dbDataString = tempContent.toString();
+          if (this.logFunction !== undefined) this.logFunction(`@internalLoad : ${this.temp} not found.`);
+          if (await exists(this.recent)) {
+            this.recentFd = await open(this.recent, 'r');
+            const recentStat = await fstat(this.recentFd);
+            if (recentStat.size > 0) {
+              if (this.logFunction !== undefined) this.logFunction(`@internalLoad : Loading from ${this.recent}`);
+              const tempContent = Buffer.alloc(recentStat.size);
+              await read(this.recentFd, tempContent, 0, recentStat.size, 0);
+              dbDataString = tempContent;
             } else {
-              console.log(`internalLoad : ${this.old} empty, possibly corrupted.`);
+              if (this.logFunction !== undefined) this.logFunction(`@internalLoad : ${this.recent} empty, possibly corrupted.`);
             }
-            await close(this.oldFd);
+            await close(this.recentFd);
           } else {
-            console.log(`internalLoad : ${this.old} not found.`);
+            if (this.logFunction !== undefined) this.logFunction(`@internalLoad : ${this.recent} not found.`);
           }
         }
       }
     }
-    if (dbDataString !== '') {
-      console.log(`internalLoad : database file loaded, populating tables.`);
-      const data = JSON.parse(dbDataString);
+    if (dbDataString.byteLength !== 0) {
+      let data: any; // eslint-disable-line
+      if (this.saveFormat === "json" || this.saveFormat === "readable_json") {
+        data = JSON.parse(dbDataString.toString());
+      } else { // msgpack
+        data = (this.msgpackDecode as Function) (dbDataString);
+      }
+
+      if (this.logFunction !== undefined) this.logFunction(`@internalLoad : database file loaded, populating tables.`);
       const [dataMeta, dataTables, dataKVTables] = data;
       const [filenameLoaded, rurudbVersionLoaded] = dataMeta;
       if (filenameLoaded !== this.filename) {
-        throw Error(`internalLoad : filename mismatch, ${filenameLoaded} !== ${this.filename}`);
+        throw Error(`@internalLoad : filename mismatch, ${filenameLoaded} !== ${this.filename}`);
       }
       if (rurudbVersionLoaded !== rurudbVersion) {
-        throw Error(`internalLoad : rurudbVersion mismatch, ${rurudbVersionLoaded} !== ${rurudbVersion}`);
+        throw Error(`@internalLoad : rurudbVersion mismatch, ${rurudbVersionLoaded} !== ${rurudbVersion}`);
       }
       this.initializing = true;
       for (let i = 0, l = dataTables.length; i < l; i += 1) {
@@ -578,9 +638,9 @@ export class Database {
         }
       }
       this.initializing = false;
-      console.log(`internalLoad : tables populated.`);
+      if (this.logFunction !== undefined) this.logFunction(`@internalLoad : tables populated.`);
     } else {
-      console.log(`internalLoad : database file not loaded, saving empty db.`);
+      if (this.logFunction !== undefined) this.logFunction(`@internalLoad : database file not loaded, saving empty db.`);
       await this.internalSave();
     }
   }
@@ -597,12 +657,12 @@ export class Database {
     if (await exists(this.temp) === false) {
       await writeFile(this.temp, '', 'utf8');
     }
-    if (await exists(this.old) === false) {
-      await writeFile(this.old, '', 'utf8');
+    if (await exists(this.recent) === false) {
+      await writeFile(this.recent, '', 'utf8');
     }
     this.mainFd = await open(this.main, 'r+');
     this.tempFd = await open(this.temp, 'r+');
-    this.oldFd = await open(this.old, 'r+');
+    this.recentFd = await open(this.recent, 'r+');
     process.nextTick(this.internalSaveLoop);
   }
   private async internalSaveLoop () : Promise<void> {
@@ -637,9 +697,17 @@ export class Database {
         dataKVTables,
       ];
 
-      const dataString = this.saveAsFormatted ? JSON.stringify(data, null, 2) : JSON.stringify(data);
+      let dataString: Buffer;
+      if (this.saveFormat === "json") {
+        dataString = Buffer.from(JSON.stringify(data));
+      } else if (this.saveFormat === "readable_json") {
+        dataString = Buffer.from(JSON.stringify(data, null, 2));
+      } else { // msgpack
+        dataString = (this.msgpackEncode as Function) (data) as Buffer;
+      }
+
       await ftruncate(this.tempFd);
-      await write(this.tempFd, dataString, 0, 'utf8');
+      await write(this.tempFd, dataString, 0, dataString.byteLength, 0);
 
       const mainStat = await fstat(this.mainFd);
       if (mainStat.size > 0) {
@@ -654,7 +722,7 @@ export class Database {
             this.directory, '/',
             this.filename, '_',
             dateToString(current),
-            '.rrdb.old',
+            this.snapshotExtension,
           );
           const snapshotFd = await open(snapshot, 'w');;
           mainContent = Buffer.alloc(mainStat.size);
@@ -667,11 +735,11 @@ export class Database {
           mainContent = Buffer.alloc(mainStat.size);
           await read(this.mainFd, mainContent, 0, mainStat.size, 0);
         }
-        await ftruncate(this.oldFd);
-        await write(this.oldFd, mainContent, 0, mainStat.size, 0);
+        await ftruncate(this.recentFd);
+        await write(this.recentFd, mainContent, 0, mainStat.size, 0);
       }
       await ftruncate(this.mainFd);
-      await write(this.mainFd, dataString, 0, 'utf8');
+      await write(this.mainFd, dataString, 0, dataString.byteLength, 0);
     } catch (e) {
       error = e;
     }
@@ -682,7 +750,7 @@ export class Database {
       this.saving = false;
       fs.closeSync(this.mainFd);
       fs.closeSync(this.tempFd);
-      fs.closeSync(this.oldFd);
+      fs.closeSync(this.recentFd);
     }
     if (error !== undefined) {
       for (let i = 0, l = fetched.length; i < l; i += 1) {
@@ -707,20 +775,20 @@ export class Database {
   }
   public async save () : Promise<void> {
     if (this.initialized === false) {
-      throw Error('Cannot call "save" on non-initialized database.');
+      throw Error('@save : Cannot call "save" on non-initialized database.');
     }
     await this.internalSave();
   }
   public table (label: string) : Table <Item> {
     if (this.tables.has(label) === false) {
-      throw Error(`table : "${label}" Table not found, must exist`);
+      throw Error(`@table : "${label}" Table not found, must exist`);
     }
     const table = new Table (label, this);
     return table;
   }
   public kvtable (label: string) : KVTable <unknown> {
     if (this.kvtables.has(label) === false) {
-      throw Error(`kvtable : "${label}" KVTable not found, must exist`);
+      throw Error(`@kvtable : "${label}" KVTable not found, must exist`);
     }
     const kvtable = new KVTable (label, this);
     return kvtable;

@@ -1,7 +1,13 @@
 
 import { Item, Database, Table, Query, KVTable } from '../src/main';
 
-const db = new Database('test', './temp', true, '1s');
+const db = new Database({
+  filename: 'test',
+  directory: './temp',
+  saveFormat: "msgpack",
+  msgpackBufferSize: 2 ** 22,
+  logFunction: console.log,
+});
 
 interface User extends Item {
   name?: string;
@@ -153,9 +159,9 @@ test('t13: abuse test case # 2 ', async () => {
     roles: ['admin', 'user'],
     numbers: [1,2,3,4],
   }), 0);
-  await sleep(250);
+  await sleep(4000);
   clearInterval(i);
-  await t13.clear();
+  // await t13.clear();
   expect(true).toBe(true);
 });
 
@@ -188,7 +194,6 @@ test('t15: Query eq', async () => {
   expect(ids.length).toBe(1);
   expect(items.length).toBe(1);
   expect(items[0]).toStrictEqual(bob);
-  // console.log({ ids, items });
   await t15.clear();
 });
 

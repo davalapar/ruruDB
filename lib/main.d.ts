@@ -70,12 +70,20 @@ export declare class KVTable<Value> {
     clear(): Promise<void>;
     destroy(): Promise<void>;
 }
+interface DatabaseOptions {
+    filename: string;
+    directory: string;
+    saveFormat: "json" | "msgpack" | "readable_json";
+    snapshotInterval?: string;
+    msgpackBufferSize?: number;
+    logFunction?: Function;
+}
 export declare class Database {
     private filename;
     private directory;
     private main;
     private temp;
-    private old;
+    private recent;
     private snapshotInterval;
     private lastSnapshotTimestamp;
     tables: Map<string, Table<Item>>;
@@ -84,12 +92,16 @@ export declare class Database {
     private queue;
     private mainFd;
     private tempFd;
-    private oldFd;
+    private recentFd;
     initialized: boolean;
     initializing: boolean;
-    private saveAsFormatted;
+    private saveFormat;
+    private msgpackEncode;
+    private msgpackDecode;
+    private snapshotExtension;
     private internalInitializePromise;
-    constructor(filename: string, directory: string, saveAsFormatted?: boolean, snapshotInterval?: string);
+    private logFunction;
+    constructor(options: DatabaseOptions);
     initialize(): Promise<void>;
     private internalLoad;
     private internalBeforeSave;
@@ -99,4 +111,5 @@ export declare class Database {
     table(label: string): Table<Item>;
     kvtable(label: string): KVTable<unknown>;
 }
+export {};
 //# sourceMappingURL=main.d.ts.map

@@ -45,16 +45,26 @@ await db.initialize();
 
 | Code | Tests | Async? | Database Functions | Returns | Description |
 |:-:|:-:|:-:|:--|:-|:--|
-| `OK` | - | - | `new Database(filename, directory, saveAsFormatted?, snapshotInterval?)` | `Database()` | Creates a database instance |
+| `OK` | - | - | `new Database(options)` | `Database()` | Creates a database instance |
 | `OK` | - | `Yes` | `await Database().initialize()` | `Promise<void>` | Creates / loads the database file |
 | `OK` | - | - | `Database().useTable <Item> (label, mustExist)` | `Table()` | Selects / creates a table |
 
-#### Notes on `new Database(filename, directory, saveAsFormatted?, snapshotInterval?)`
+#### Notes on `new Database(options)`
 
-- `filename` is a `string`, ie. `'mydb'`
-- `directory` is a `string`, ie. `'./database'`
-- `saveAsFormatted` is an optional boolean, defaults to `false`
-- `snapshotInterval` is an optional string-time format, check out https://www.npmjs.com/package/ms
+- `directory` must start with `'./'`, ie `'./temp'`
+- `msgpackBufferSize` is required when using `msgpack` as value of `saveFormat`
+- `snapshotInterval` is only triggered when database has been modified
+```js
+interface DatabaseOptions {
+  filename: string;
+  directory: string;
+  saveFormat: "json"|"msgpack"|"readable_json";
+  snapshotInterval?: string; // https://www.npmjs.com/package/ms
+  msgpackBufferSize?: number;
+  logFunction?: Function;
+}
+```
+
 
 ## `Table`
 
@@ -109,7 +119,7 @@ settings.get('somekey'); // 'somevalue'
 await settings.delete();
 settings.has('somekey'); // false
 await settings.clear();
-await settings.remove();
+await settings.destroy();
 ```
 
 | Code | Tests | Async? | Table Functions | Returns | Description |
@@ -276,5 +286,12 @@ import { Query } from 'rurudb';
   - Added versioning on database files, load now checks for major semver version and expected db filename
   - Snapshots now sourced from `main` instead of `old` file
   - Fixed typos on Database pre-constructor
+- 8.0.0
+  - Rewrite `what-the-pack` msgpack encoder
+  - Add `what-the-pack` test coverage checks
+  - Create types for `what-the-pack`
+  - Use `*.prrdb` for "msgpack" databases
+  - Use `*.rrdb` for "json" and "readable_json" databases
+  - Benchmark differences: `329KB @ json` becomes `126KB @ msgpack`
 
 MIT | @davalapar
