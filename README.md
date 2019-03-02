@@ -7,7 +7,7 @@ RuruDB is a document database with basic features for prototyping purposes.
 ## Perks
 
 - Written in `TypeScript` & has tests with `Jest`
-- Asynchronous `Database`, & `Table` methods
+- Asynchronous `Database`, `Table` & `KVTables` methods
 - Synchronous `Query` methods, built-in
 - Uses low-level file descriptors for performance
 - Database file snapshots
@@ -17,12 +17,6 @@ RuruDB is a document database with basic features for prototyping purposes.
   - Data is finally written to `*.rrdb`
 - Supports `string`, `number`, `boolean`, `null`, `undefined`, `Object` & `Array` properties
 - Readable output, uses `JSON.stringify()` for encoding
-
-## Planned Future Improvements
-
-- Support saving using `MessagePack`
-  - Smaller file size
-  - Support for `Typedarrays`, `NaN`, `+Infinity` & `-Infinity` values
 
 ## Implementation Term Equivalents
 
@@ -39,7 +33,13 @@ RuruDB is a document database with basic features for prototyping purposes.
 ```ts
 import { Database } from 'rurudb';
 
-const db = new Database('mydbfile', './myfolder');
+const db = new Database({
+  filename: 'mydbfile',
+  directory: './myfolder',
+  saveFormat: "msgpack",
+  msgpackBufferSize: 2 ** 22,
+  logFunction: console.log,
+});
 await db.initialize();
 ```
 
@@ -71,7 +71,13 @@ interface DatabaseOptions {
 ```ts
 import { Database, Table } from 'rurudb';
 
-const db = new Database('mydbfile', './myfolder');
+const db = new Database({
+  filename: 'mydbfile',
+  directory: './myfolder',
+  saveFormat: "msgpack",
+  msgpackBufferSize: 2 ** 22,
+  logFunction: console.log,
+});
 await db.initialize();
 
 interface User {
@@ -108,7 +114,13 @@ const alice = await users.insertItem(users.randomItemId(), {
 ```ts
 import { Database, KVTable } from 'rurudb';
 
-const db = new Database('mydbfile', './myfolder');
+const db = new Database({
+  filename: 'mydbfile',
+  directory: './myfolder',
+  saveFormat: "msgpack",
+  msgpackBufferSize: 2 ** 22,
+  logFunction: console.log,
+});
 await db.initialize();
 
 const settings = new KVTable <boolean> ('settings', db);
