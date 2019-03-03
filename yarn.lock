@@ -3720,10 +3720,10 @@ webidl-conversions@^4.0.2:
   resolved "https://registry.yarnpkg.com/webidl-conversions/-/webidl-conversions-4.0.2.tgz#a855980b1f0b6b359ba1d5d9fb39ae941faa63ad"
   integrity sha512-YQ+BmxuTgd6UXZW3+ICGfyqRyHXVlD5GtQr5+qjiNW7bF0cqrzX500HVXPBOvgXb5YnzDd+h0zqyv61KUD7+Sg==
 
-what-the-pack@^2.0.0:
-  version "2.0.0"
-  resolved "https://registry.yarnpkg.com/what-the-pack/-/what-the-pack-2.0.0.tgz#70ac280812828154329e5acbb156791ffbdbda5d"
-  integrity sha512-rZF2CHEeMNccYsZeAfIqUuwFsN9V/LIHGPx8M+1LMztNDlsTWDngV2LzvN+M9a60Y8nOTTXyZzoZ9rxa0AxN0A==
+what-the-pack@^2.0.2:
+  version "2.0.2"
+  resolved "https://registry.yarnpkg.com/what-the-pack/-/what-the-pack-2.0.2.tgz#ce44d765de50e449f44565cf55ee333f084ba4c3"
+  integrity sha512-2QTdQYo/VYyzlluPIy8jZ0vNeIOYgPvPdhaeHBkYPQGWs+1/xvtp8gkK3aF+XbkLbWwhjroe3nFdNNHrYjifKQ==
   dependencies:
     buffer "^5.2.1"
     pretty-bytes "^5.1.0"

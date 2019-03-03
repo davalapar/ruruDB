@@ -305,5 +305,7 @@ import { Query } from 'rurudb';
   - Use `*.prrdb` for "msgpack" databases
   - Use `*.rrdb` for "json" and "readable_json" databases
   - Benchmark differences: `329KB @ json` becomes `126KB @ msgpack`
+- 8.0.x
+  - Update `what-the-pack`
 
 MIT | @davalapar
