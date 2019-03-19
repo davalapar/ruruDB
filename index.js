@@ -1,3 +1,4 @@
+'use strict';
 
 const fs = require('fs');
 const { promisify } = require('util');
@@ -54,9 +55,9 @@ const copyArray = (target, freeze) => {
         if (target[i] === null) {
           item[i] = null;
         } else if (Array.isArray(target[i]) === true){
-          item[i] = copyArray(target[i]);
+          item[i] = copyArray(target[i], freeze);
         } else {
-          item[i] = copyObject(target[i]);
+          item[i] = copyObject(target[i], freeze);
         }
         break;
       }
@@ -104,9 +105,9 @@ const copyObject = (target, freeze) => {
         if (target[key] === null) {
           item[key] = null;
         } else if (Array.isArray(target[key]) === true){
-          item[key] = copyArray(target[key]);
+          item[key] = copyArray(target[key], freeze);
         } else {
-          item[key] = copyObject(target[key]);
+          item[key] = copyObject(target[key], freeze);
         }
         break;
       }
@@ -121,12 +122,68 @@ const copyObject = (target, freeze) => {
   return item;
 };
 
+function finalizeQuery (returnClone) {
+  if (this.sorts.length > 0) {
+    this.slicedItems.sort((a, b) => {
+      for (let i = 0, l = this.sorts.length; i < l; i += 1) {
+        const sort = this.sorts[i];
+        if (typeof sort[0] === 'function') {
+          const [sortFn] = sort;
+          return sortFn(a, b);
+        }
+        const [field, fieldDescend] = sort;
+        if (typeof a[field] !== typeof b[field]) { // If field of both slicedItems don't match: EXIT LOOP
+          break;
+        } else if (typeof a[field] !== 'string' && typeof a[field] !== 'number') { // If both item fields are't "string" or "number": EXIT LOOP
+          break;
+        } else if (a[field] === b[field]) { // If value of both slicedItems are equal: SKIP SORT
+          continue;
+        } else if (typeof a[field] === 'string') {
+          return compareString(a[field], b[field], fieldDescend);
+        } else if (typeof a[field] === 'number') {
+          return compareNumber(a[field], b[field], fieldDescend);
+        }
+      }
+      return 0;
+    });
+  }
+  this.slicedItems = this.slicedItems.slice(this.queryOffset, this.queryOffset + this.queryLimit);
+  if (returnClone === true) {
+    this.resultItems = new Array(this.slicedItems.length);
+    for (let i = 0, l = this.slicedItems.length; i < l; i += 1) {
+      const item = copyObject(this.slicedItems[i], false);
+      if (this.selectedFields.length > 0) {
+        const itemFields = Object.keys(item);
+        for (let a = 0, b = itemFields.length; a < b; a += 1) { // For each item field
+          const currentField = itemFields[a];
+          if (this.selectedFields.includes(currentField) === false) { // If selected field includes field, DELETE
+            delete item[currentField];
+          }
+        }
+      }
+      for (let a = 0, b = this.hiddenFields.length; a < b; a += 1) { // For each hidden field, DELETE
+        const currentHiddenField = this.hiddenFields[a];
+        delete item[currentHiddenField];
+      }
+      this.resultItems[i] = item;
+    }
+  } else {
+    if (this.selectedFields.length > 0) {
+      throw Error('Query : "returnClone" must be "true" to use "select(...fields)"');
+    }
+    if (this.hiddenFields.length > 0) {
+      throw Error('Query : "returnClone" must be "true" to use "hide(...fields)"');
+    }
+    this.resultItems = this.slicedItems;
+  }
+  this.finalized = true;
+}
+
 class Query {
   constructor(table) {
     if (typeof table !== 'object') {
       throw Error('@constructor : Expecting "table" to be typeof "object"');
     }
-    this.resultIds = [];
     this.resultItems = [];
     this.slicedItems = Array.from(table.index.values());
     this.queryOffset = 0;
@@ -251,85 +308,24 @@ class Query {
     return this;
   }
 
-  finalize() {
-    if (this.sorts.length > 0) {
-      this.slicedItems.sort((a, b) => {
-        for (let i = 0, l = this.sorts.length; i < l; i += 1) {
-          const sort = this.sorts[i];
-          if (typeof sort[0] === 'function') {
-            const [sortFn] = sort;
-            return sortFn(a, b);
-          }
-          const [field, fieldDescend] = sort;
-          if (typeof a[field] !== typeof b[field]) { // If field of both slicedItems don't match: EXIT LOOP
-            break;
-          } else if (typeof a[field] !== 'string' && typeof a[field] !== 'number') { // If both item fields are't "string" or "number": EXIT LOOP
-            break;
-          } else if (a[field] === b[field]) { // If value of both slicedItems are equal: SKIP SORT
-            continue;
-          } else if (typeof a[field] === 'string') {
-            return compareString(a[field], b[field], fieldDescend);
-          } else if (typeof a[field] === 'number') {
-            return compareNumber(a[field], b[field], fieldDescend);
-          }
-        }
-        return 0;
-      });
-    }
-    this.slicedItems = this.slicedItems.slice(this.queryOffset, this.queryOffset + this.queryLimit);
-    const resultIds = new Array(this.slicedItems.length);
-    const resultItems = new Array(this.slicedItems.length);
-    for (let i = 0, l = this.slicedItems.length; i < l; i += 1) {
-      const item = copyObject(this.slicedItems[i]);
-      resultIds[i] = item.id;
-      if (this.selectedFields.length > 0) {
-        const itemFields = Object.keys(item);
-        for (let a = 0, b = itemFields.length; a < b; a += 1) { // For each item field
-          const currentField = itemFields[a];
-          if (this.selectedFields.includes(currentField) === false) { // If selected field includes field, DELETE
-            delete item[currentField];
-          }
-        }
-      }
-      for (let a = 0, b = this.hiddenFields.length; a < b; a += 1) { // For each hidden field, DELETE
-        const currentHiddenField = this.hiddenFields[a];
-        delete item[currentHiddenField];
-      }
-      resultItems[i] = item;
-    }
-    this.resultIds = resultIds;
-    this.resultItems = resultItems;
-    this.finalized = true;
-  }
-
-  ids() {
-    if (this.finalized === false) this.finalize();
-    return this.resultIds;
-  }
-
-  items() {
-    if (this.finalized === false) this.finalize();
+  results(returnClone) {
+    if (this.finalized === false) finalizeQuery.call(this, returnClone);
     return this.resultItems;
   }
 
-  firstId() {
-    if (this.finalized === false) this.finalize();
-    return this.resultIds[0];
-  }
-
-  firstItem() {
-    if (this.finalized === false) this.finalize();
+  firstResult(returnClone) {
+    if (this.finalized === false) finalizeQuery.call(this, returnClone);
     return this.resultItems[0];
   }
 
-  entries() {
-    if (this.finalized === false) this.finalize();
-    return this.resultItems.map(item => [item.id, item]);
+  hasResults(returnClone) {
+    if (this.finalized === false) finalizeQuery.call(this, returnClone);
+    return this.resultItems.length > 0;
   }
 
-  results() {
-    if (this.finalized === false) this.finalize();
-    return [this.resultIds, this.resultItems];
+  countResults(returnClone) {
+    if (this.finalized === false) finalizeQuery.call(this, returnClone);
+    return this.resultItems.length;
   }
 }
 

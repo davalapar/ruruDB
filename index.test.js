@@ -1,3 +1,4 @@
+'use strict';
 
 const { Item, Database, Table, Query, KVTable } = require('./index');
 
@@ -35,7 +36,7 @@ test('t3: updateItem', async () => {
   await t3.clear();
   const aliceId = t3.randomItemId();
   const aliceData = { name: 'alice', age: 25 };
-  const alice = await t3.insertItem (aliceId, aliceData);
+  const alice = await t3.insertItem (aliceId, aliceData, true);
   expect(alice.name).toBe('alice');
   expect(alice.age).toBe(25);
   alice.age = 26;
@@ -157,9 +158,7 @@ test('t14: basic Query', async () => {
   const aliceId = t14.randomItemId();
   const aliceData = { name: 'alice', age: 25 };
   const alice = await t14.insertItem (aliceId, aliceData);
-  const [ids, items] = new Query(t14).results();
-  expect(ids.length).toBe(1);
-  expect(items.length).toBe(1);
+  const items = new Query(t14).results();
   expect(items[0]).toStrictEqual(alice);
   await t14.clear();
 });
@@ -173,10 +172,9 @@ test('t15: Query eq', async () => {
   const bobId = t15.randomItemId();
   const bobData = { name: 'bob', age: 23 };
   const bob = await t15.insertItem (bobId, bobData);
-  const [ids, items] = new Query(t15)
+  const items = new Query(t15)
     .eq('age', 23)
     .results();
-  expect(ids.length).toBe(1);
   expect(items.length).toBe(1);
   expect(items[0]).toStrictEqual(bob);
   await t15.clear();
@@ -191,13 +189,11 @@ test('t16: Query neq', async () => {
   const bobId = t16.randomItemId();
   const bobData = { name: 'bob', age: 23 };
   const bob = await t16.insertItem (bobId, bobData);
-  const [ids, items] = new Query(t16)
+  const items = new Query(t16)
     .neq('age', 25)
     .results();
-  expect(ids.length).toBe(1);
   expect(items.length).toBe(1);
   expect(items[0]).toStrictEqual(bob);
-  // console.log({ ids, items });
   await t16.clear();
 });
 
@@ -212,7 +208,7 @@ test('t17: Query firstId', async () => {
   await t17.insertItem (bobId, bobData);
   const fetchedAlice = new Query(t17)
     .eq('age', 25)
-    .firstItem();
+    .firstResult();
   expect(fetchedAlice).toStrictEqual(alice);
   // console.log({ ids, items });
   await t17.clear();
@@ -229,27 +225,10 @@ test('t18: Query firstId undefined', async () => {
   await t18.insertItem (bobId, bobData);
   const fetchedAlice = new Query(t18)
     .eq('age', 100)
-    .firstItem();
+    .firstResult();
   expect(fetchedAlice).toBe(undefined);
   // console.log({ ids, items });
   await t18.clear();
-});
-
-test('t19: Query firstId', async () => {
-  const t19 = new Table ('t19', db);
-  await t19.clear();
-  const aliceId = t19.randomItemId();
-  const aliceData = { name: 'alice', age: 25 };
-  await t19.insertItem (aliceId, aliceData);
-  const bobId = t19.randomItemId();
-  const bobData = { name: 'bob', age: 23 };
-  await t19.insertItem (bobId, bobData);
-  const fetchedAliceId = new Query(t19)
-    .eq('age', 25)
-    .firstId();
-  expect(fetchedAliceId).toStrictEqual(aliceId);
-  // console.log({ ids, items });
-  await t19.clear();
 });
 
 test('t20: Query firstId undefined', async () => {
@@ -263,7 +242,7 @@ test('t20: Query firstId undefined', async () => {
   await t20.insertItem (bobId, bobData);
   const fetchedAliceId = new Query(t20)
     .eq('age', 100)
-    .firstItem();
+    .firstResult();
   expect(fetchedAliceId).toBe(undefined);
   // console.log({ ids, items });
   await t20.clear();
@@ -277,13 +256,13 @@ test('t21: Query ascend descend', async () => {
   const bob = await t21.insertItem (t21.randomItemId(), { name: 'bob', age: 24 });
   const ascended = new Query(t21)
     .ascend('age')
-    .items();
+    .results();
   expect(ascended[0]).toStrictEqual(cathy);
   expect(ascended[1]).toStrictEqual(bob);
   expect(ascended[2]).toStrictEqual(alice);
   const descended = new Query(t21)
     .descend('age')
-    .items();
+    .results();
   expect(descended[0]).toStrictEqual(alice);
   expect(descended[1]).toStrictEqual(bob);
   expect(descended[2]).toStrictEqual(cathy);
@@ -296,7 +275,7 @@ test('t22: Query hide', async () => {
   await t22.insertItem (t22.randomItemId(), { name: 'alice', age: 25 });
   const fetchedAlice = new Query(t22)
     .hide('age')
-    .firstItem();
+    .firstResult(true);
   if (fetchedAlice === undefined) throw Error('fetchedAlice must not be undefined');
   expect(fetchedAlice.age).toBe(undefined);
   await t22.clear();
@@ -308,7 +287,7 @@ test('t23: Query select', async () => {
   await t23.insertItem (t23.randomItemId(), { name: 'alice', age: 25 });
   const fetchedAlice = new Query(t23)
     .select('name')
-    .firstItem();
+    .firstResult(true);
   if (fetchedAlice === undefined) throw Error('fetchedAlice must not be undefined');
   expect(fetchedAlice.age).toBe(undefined);
   await t23.clear();
