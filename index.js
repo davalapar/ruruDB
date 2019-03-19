@@ -1,7 +1,6 @@
 
 const fs = require('fs');
 const { promisify } = require('util');
-const cloneDeep = require('lodash/cloneDeep');
 const isPlainObject = require('lodash/isPlainObject');
 const uuidv4 = require('uuid/v4');
 const ms = require('ms');
@@ -25,6 +24,92 @@ const rurudbVersion = 9;
 const dateToString = tinydate('{DD}-{MM}-{YY}-{HH}-{mm}-{ss}');
 const compareString = (a, b, descend) => (descend ? b.localeCompare(a) : a.localeCompare(b));
 const compareNumber = (a, b, descend) => (descend ? b - a : a - b);
+
+const copyArray = (target) => {
+  if (Array.isArray(target) === false) {
+    throw Error('copyArray : "target" must be a plain array');
+  }
+  const item = new Array(target.length);
+  for (let i = 0, l = target.length; i < l; i += 1) {
+    switch (typeof target[i]) {
+      case 'undefined':
+      case 'boolean':
+      case 'string': {
+        item[i] = target[i];
+        break;
+      }
+      case 'number':{
+        if (Number.isNaN(target[i]) === true) {
+          throw Error (`copyArray : Unexpected NaN at index "${i}"`);
+        } else if (Number.isFinite(target[i]) === false) {
+          throw Error (`copyArray : Unexpected non-finite at index "${i}"`);
+        } else {
+          item[i] = target[i];
+        }
+        break;
+      }
+      case 'object': {
+        if (target[i] === null) {
+          item[i] = null;
+        } else if (Array.isArray(target[i]) === true){
+          item[i] = copyArray(target[i]);
+        } else {
+          item[i] = copyObject(target[i]);
+        }
+        break;
+      }
+      default: {
+        throw Error (`copyArray : Unexpected type ${typeof target[i]}`);
+      }
+    }
+  }
+  return item;
+};
+
+const copyObject = (target) => {
+  if (isPlainObject(target) === false) {
+    throw Error('copyObject : "target" must be a plain object');
+  }
+  const item = {};
+  const keys = Object.keys(target);
+  for (let i = 0, l = keys.length; i < l; i += 1) {
+    const key = keys[i];
+    switch (typeof target[key]) {
+      case 'undefined': {
+        break;
+      }
+      case 'boolean':
+      case 'string': {
+        item[key] = target[key];
+        break;
+      }
+      case 'number':{
+        if (Number.isNaN(target[key]) === true) {
+          throw Error (`copyObject : Unexpected NaN at key "${key}"`);
+        } else if (Number.isFinite(target[key]) === false) {
+          throw Error (`copyObject : Unexpected non-finite at key "${key}"`);
+        } else {
+          item[key] = target[key];
+        }
+        break;
+      }
+      case 'object': {
+        if (target[key] === null) {
+          item[key] = null;
+        } else if (Array.isArray(target[key]) === true){
+          item[key] = copyArray(target[key]);
+        } else {
+          item[key] = copyObject(target[key]);
+        }
+        break;
+      }
+      default: {
+        throw Error (`copyObject : Unexpected type ${typeof target[i]}`);
+      }
+    }
+  }
+  return item;
+};
 
 class Query {
   constructor(table) {
@@ -185,7 +270,7 @@ class Query {
     const resultIds = new Array(this.slicedItems.length);
     const resultItems = new Array(this.slicedItems.length);
     for (let i = 0, l = this.slicedItems.length; i < l; i += 1) {
-      const item = cloneDeep(this.slicedItems[i]);
+      const item = copyObject(this.slicedItems[i]);
       resultIds[i] = item.id;
       if (this.selectedFields.length > 0) {
         const itemFields = Object.keys(item);
@@ -269,11 +354,11 @@ class Table {
     }
     const item = Object.freeze({
       id,
-      ...cloneDeep(data),
+      ...copyObject(data),
     });
     this.index.set(id, item);
     await this.database.save();
-    const copy = cloneDeep(item);
+    const copy = copyObject(item);
     return copy;
   }
 
@@ -287,7 +372,7 @@ class Table {
     if (this.index.has(modified.id) === false) {
       throw Error('@updateItem : Invalid "item", item "id" must exist in table');
     }
-    const item = cloneDeep(modified);
+    const item = copyObject(modified);
     this.index.set(item.id, item);
     await this.database.save();
   }
@@ -304,11 +389,11 @@ class Table {
     }
     const item = {
       id,
-      ...cloneDeep(data),
+      ...copyObject(data),
     };
     this.index.set(id, item);
     await this.database.save();
-    const copy = cloneDeep(item);
+    const copy = copyObject(item);
     return copy;
   }
 
@@ -326,11 +411,11 @@ class Table {
     const item = {
       id,
       ...existing,
-      ...cloneDeep(data),
+      ...copyObject(data),
     };
     this.index.set(id, item);
     await this.database.save();
-    const copy = cloneDeep(item);
+    const copy = copyObject(item);
     return copy;
   }
 
@@ -367,7 +452,7 @@ class Table {
       throw Error('@fetchItem : Invalid "item", "id" must exist in table');
     }
     const item = this.index.get(id);
-    const copy = cloneDeep(item);
+    const copy = copyObject(item);
     return copy;
   }
 
