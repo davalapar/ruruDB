@@ -24,9 +24,12 @@ const rurudbVersion = 9;
 const dateToString = tinydate('{DD}-{MM}-{YY}-{HH}-{mm}-{ss}');
 const compareString = (a, b, descend) => (descend ? b.localeCompare(a) : a.localeCompare(b));
 const compareNumber = (a, b, descend) => (descend ? b - a : a - b);
-const copyArray = (target) => {
+const copyArray = (target, freeze) => {
   if (Array.isArray(target) === false) {
     throw Error('copyArray : "target" must be a plain array');
+  }
+  if (typeof freeze !== 'boolean') {
+    throw Error('copyArray : "freeze" must be a boolean');
   }
   const item = new Array(target.length);
   for (let i = 0, l = target.length; i < l; i += 1) {
@@ -62,11 +65,17 @@ const copyArray = (target) => {
       }
     }
   }
+  if (freeze === true) {
+    return Object.freeze(item);
+  }
   return item;
 };
-const copyObject = (target) => {
+const copyObject = (target, freeze) => {
   if (isPlainObject(target) === false) {
     throw Error('copyObject : "target" must be a plain object');
+  }
+  if (typeof freeze !== 'boolean') {
+    throw Error('copyObject : "freeze" must be a boolean');
   }
   const item = {};
   const keys = Object.keys(target);
@@ -105,6 +114,9 @@ const copyObject = (target) => {
         throw Error (`copyObject : Unexpected type ${typeof target[i]}`);
       }
     }
+  }
+  if (freeze === true) {
+    return Object.freeze(item);
   }
   return item;
 };
@@ -343,39 +355,45 @@ class Table {
     return id;
   }
 
-  async insertItem(id, data) {
+  async insertItem(id, data, returnClone) {
     if (isPlainObject(data) === false) {
       throw Error('@insertItem : Invalid "data", "data" must be a plain object');
     }
     if (this.index.has(id)) {
       throw Error('@insertItem : Invalid "id", must not exist in table');
     }
-    const item = Object.freeze({
+    const item = copyObject({
       id,
-      ...copyObject(data),
-    });
+      ...data
+    }, true);
     this.index.set(id, item);
     await this.database.save();
-    const copy = copyObject(item);
-    return copy;
+    if (returnClone === true) {
+      return copyObject(item, false);
+    }
+    return item;
   }
 
-  async updateItem(modified) {
-    if (isPlainObject(modified) === false) {
-      throw Error('@updateItem : Invalid "modified", "modified" must be a plain object');
+  async updateItem(modifiedItem, returnClone) {
+    if (isPlainObject(modifiedItem) === false) {
+      throw Error('@updateItem : Invalid "modifiedItem", "modifiedItem" must be a plain object');
     }
-    if (modified.id === undefined) {
+    if (modifiedItem.id === undefined) {
       throw Error('@updateItem : Invalid "item", "id" must not be "undefined"');
     }
-    if (this.index.has(modified.id) === false) {
+    if (this.index.has(modifiedItem.id) === false) {
       throw Error('@updateItem : Invalid "item", item "id" must exist in table');
     }
-    const item = copyObject(modified);
+    const item = copyObject(modifiedItem, true);
     this.index.set(item.id, item);
     await this.database.save();
+    if (returnClone === true) {
+      return copyObject(item, false);
+    }
+    return item;
   }
 
-  async updateItemById(id, data) {
+  async updateItemById(id, data, returnClone) {
     if (isPlainObject(data) === false) {
       throw Error('@updateItemById : Invalid "data", "data" must be a plain object');
     }
@@ -385,17 +403,19 @@ class Table {
     if (this.index.has(id) === false) {
       throw Error('@updateItemById : Invalid "id", must exist in table');
     }
-    const item = {
+    const item = copyObject({
       id,
-      ...copyObject(data),
-    };
+      ...data,
+    }, true);
     this.index.set(id, item);
     await this.database.save();
-    const copy = copyObject(item);
-    return copy;
+    if (returnClone === true) {
+      return copyObject(item, false);
+    }
+    return item;
   }
 
-  async mergeItemById(id, data) {
+  async mergeItemById(id, data, returnClone) {
     if (isPlainObject(data) === false) {
       throw Error('@mergeItemById : Invalid "data", "data" must be a plain object');
     }
@@ -406,15 +426,17 @@ class Table {
       throw Error('@mergeItemById : Invalid "item", "id" must exist in table');
     }
     const existing = this.index.get(id);
-    const item = {
+    const item = copyObject({
       id,
       ...existing,
-      ...copyObject(data),
-    };
+      ...data,
+    }, true);
     this.index.set(id, item);
     await this.database.save();
-    const copy = copyObject(item);
-    return copy;
+    if (returnClone === true) {
+      return copyObject(item, false);
+    }
+    return item;
   }
 
   async removeItem(item) {
@@ -442,7 +464,7 @@ class Table {
     await this.database.save();
   }
 
-  fetchItem(id) {
+  fetchItem(id, returnClone) {
     if (id === undefined) {
       throw Error('@fetchItem : Invalid "id", "id" must not be "undefined"');
     }
@@ -450,8 +472,10 @@ class Table {
       throw Error('@fetchItem : Invalid "item", "id" must exist in table');
     }
     const item = this.index.get(id);
-    const copy = copyObject(item);
-    return copy;
+    if (returnClone === true) {
+      return copyObject(item, false);
+    }
+    return item;
   }
 
   async clear() {
