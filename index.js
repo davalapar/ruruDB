@@ -24,7 +24,6 @@ const rurudbVersion = 9;
 const dateToString = tinydate('{DD}-{MM}-{YY}-{HH}-{mm}-{ss}');
 const compareString = (a, b, descend) => (descend ? b.localeCompare(a) : a.localeCompare(b));
 const compareNumber = (a, b, descend) => (descend ? b - a : a - b);
-
 const copyArray = (target) => {
   if (Array.isArray(target) === false) {
     throw Error('copyArray : "target" must be a plain array');
@@ -65,7 +64,6 @@ const copyArray = (target) => {
   }
   return item;
 };
-
 const copyObject = (target) => {
   if (isPlainObject(target) === false) {
     throw Error('copyObject : "target" must be a plain object');
