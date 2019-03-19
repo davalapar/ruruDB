@@ -1,16 +1,12 @@
 {
   "name": "rurudb",
-  "version": "8.0.2",
+  "version": "9.0.0",
   "description": "RuruDB is a document database with basic features for prototyping purposes.",
   "main": "./lib/main.js",
   "types": "./lib/main.d.ts",
   "author": "davalapar <davalapar@gmail.com>",
   "license": "MIT",
   "dependencies": {
-    "@types/lodash": "^4.14.120",
-    "@types/ms": "^0.7.30",
-    "@types/node": "^10.12.19",
-    "@types/uuid": "^3.4.4",
     "lodash": "^4.17.11",
     "ms": "^2.1.1",
     "tinydate": "^1.0.1",
@@ -18,16 +14,11 @@
     "what-the-pack": "^2.0.2"
   },
   "devDependencies": {
-    "@types/jest": "^24.0.0",
-    "@typescript-eslint/eslint-plugin": "^1.2.0",
-    "@typescript-eslint/parser": "^1.2.0",
     "eslint": "^5.13.0",
-    "eslint-config-prettier": "^4.0.0",
-    "jest": "^24.1.0",
-    "ts-jest": "^23.10.5",
-    "typescript": "3.2.1"
-  },
-  "scripts": {
-    "build": "tsc"
+    "eslint-config-airbnb": "17.1.0",
+    "eslint-plugin-import": "2.14.0",
+    "eslint-plugin-jsx-a11y": "6.1.1",
+    "eslint-plugin-react": "7.11.0",
+    "jest": "^24.1.0"
   }
 }

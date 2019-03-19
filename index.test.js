@@ -1,5 +1,5 @@
 
-import { Item, Database, Table, Query, KVTable } from '../src/main';
+const { Item, Database, Table, Query, KVTable } = require('./index');
 
 const db = new Database({
   filename: 'test',
@@ -8,12 +8,6 @@ const db = new Database({
   msgpackBufferSize: 2 ** 22,
   logFunction: console.log,
 });
-
-interface User extends Item {
-  name?: string;
-  age?: number;
-  address?: string;
-}
 
 beforeAll(async () => {
   await db.initialize();
@@ -37,7 +31,7 @@ test('t2: insertItem, randomItemId', async () => {
 });
 
 test('t3: updateItem', async () => {
-  const t3 = new Table <User> ('t3', db);
+  const t3 = new Table  ('t3', db);
   await t3.clear();
   const aliceId = t3.randomItemId();
   const aliceData = { name: 'alice', age: 25 };
@@ -128,7 +122,7 @@ test('t10: removeTable ', async () => {
   expect(db.tables.has('t10')).toStrictEqual(false);
 });
 
-const sleep = (timeout: number) : Promise<void> => new Promise(resolve => setTimeout(resolve, timeout));
+const sleep = (timeout)  => new Promise(resolve => setTimeout(resolve, timeout));
 
 test('t12: abuse test case # 1 ', async () => {
   const t12 = new Table ('t12', db);
@@ -140,15 +134,6 @@ test('t12: abuse test case # 1 ', async () => {
 });
 
 test('t13: abuse test case # 2 ', async () => {
-  interface CustomItem {
-    str: string;
-    number: number;
-    bool: boolean;
-    null: null;
-    undefined: undefined;
-    roles: string[];
-    numbers: number[];
-  }
   const t13 = new Table ('t13', db);
   const i = setInterval(() => t13.insertItem (t13.randomItemId(), {
     str: 'something',
