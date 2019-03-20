@@ -882,37 +882,45 @@ class Database {
         this.mainFd = await open(this.main, 'r');
         const mainStat = await fstat(this.mainFd);
         if (mainStat.size > 0) {
-          if (this.logFunction !== undefined) this.logFunction(`@internalLoad : Loading from ${this.main}`);
+          this.logFunction(`@internalLoad : Loading from ${this.main}`);
           const mainContent = Buffer.alloc(mainStat.size);
           await read(this.mainFd, mainContent, 0, mainStat.size, 0);
           dbDataString = mainContent;
-        } else if (this.logFunction !== undefined) this.logFunction(`@internalLoad : ${this.main} empty, possibly corrupted.`);
+        } else {
+          this.logFunction(`@internalLoad : ${this.main} empty, possibly corrupted.`);
+        }
         await close(this.mainFd);
       } else {
-        if (this.logFunction !== undefined) this.logFunction(`@internalLoad : ${this.main} not found.`);
+        this.logFunction(`@internalLoad : ${this.main} not found.`);
         if (await exists(this.temp)) {
           this.tempFd = await open(this.temp, 'r');
           const tempStat = await fstat(this.tempFd);
           if (tempStat.size > 0) {
-            if (this.logFunction !== undefined) this.logFunction(`@internalLoad : Loading from ${this.temp}`);
+            this.logFunction(`@internalLoad : Loading from ${this.temp}`);
             const tempContent = Buffer.alloc(tempStat.size);
             await read(this.tempFd, tempContent, 0, tempStat.size, 0);
             dbDataString = tempContent;
-          } else if (this.logFunction !== undefined) this.logFunction(`@internalLoad : ${this.temp} empty, possibly corrupted.`);
+          } else {
+            this.logFunction(`@internalLoad : ${this.temp} empty, possibly corrupted.`);
+          }
           await close(this.tempFd);
         } else {
-          if (this.logFunction !== undefined) this.logFunction(`@internalLoad : ${this.temp} not found.`);
+          this.logFunction(`@internalLoad : ${this.temp} not found.`);
           if (await exists(this.recent)) {
             this.recentFd = await open(this.recent, 'r');
             const recentStat = await fstat(this.recentFd);
             if (recentStat.size > 0) {
-              if (this.logFunction !== undefined) this.logFunction(`@internalLoad : Loading from ${this.recent}`);
+              this.logFunction(`@internalLoad : Loading from ${this.recent}`);
               const tempContent = Buffer.alloc(recentStat.size);
               await read(this.recentFd, tempContent, 0, recentStat.size, 0);
               dbDataString = tempContent;
-            } else if (this.logFunction !== undefined) this.logFunction(`@internalLoad : ${this.recent} empty, possibly corrupted.`);
+            } else {
+              this.logFunction(`@internalLoad : ${this.recent} empty, possibly corrupted.`);
+            }
             await close(this.recentFd);
-          } else if (this.logFunction !== undefined) this.logFunction(`@internalLoad : ${this.recent} not found.`);
+          } else {
+            this.logFunction(`@internalLoad : ${this.recent} not found.`);
+          }
         }
       }
     }
@@ -923,8 +931,7 @@ class Database {
       } else { // msgpack
         data = (this.msgpackDecode)(dbDataString);
       }
-
-      if (this.logFunction !== undefined) this.logFunction('@internalLoad  file loaded, populating tables.');
+      this.logFunction('@internalLoad  file loaded, populating tables.');
       const [dataMeta, dataTables, dataKVTables] = data;
       const [filenameLoaded, rurudbVersionLoaded] = dataMeta;
       if (filenameLoaded !== this.filename) {
@@ -949,9 +956,9 @@ class Database {
         }
       }
       this.initializing = false;
-      if (this.logFunction !== undefined) this.logFunction('@internalLoad : tables populated.');
+      this.logFunction('@internalLoad : tables populated.');
     } else {
-      if (this.logFunction !== undefined) this.logFunction('@internalLoad  file not loaded, saving empty db.');
+      this.logFunction('@internalLoad : file not loaded, saving empty db.');
       await this.internalSave();
     }
   }
