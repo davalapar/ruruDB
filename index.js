@@ -18,6 +18,10 @@ const fstat = promisify(fs.fstat);
 const exists = promisify(fs.exists);
 const mkdir = promisify(fs.mkdir);
 
+const crypto = require('crypto');
+
+const sha256 = (s) => crypto.createHash('sha256').update(s, 'utf8').digest('hex');
+
 // Database Version
 const rurudbVersion = 9;
 
@@ -261,56 +265,53 @@ const validateBySchema = (schema, target) => {
     const schemaValue = schema[schemaKey];
     switch (schemaValue.type) {
       case 'boolean': {
-        const targetValue = target[schemaKey];
         // If it's not set in target, we set it.
-        if (targetValue === undefined) {
-          targetValue === schemaValue.default;
+        if (target[schemaKey] === undefined) {
+          target[schemaKey] === schemaValue.default;
           break;
         }
         // If it's set in target, we type-check it.
-        if (typeof targetValue !== 'boolean') {
+        if (typeof target[schemaKey] !== 'boolean') {
           throw Error(`@validateBySchema : "${schemaKey}" at target must be typeof boolean.`);
         }
         break;
       }
       case 'string': {
-        const targetValue = target[schemaKey];
         // If it's not set in target, we set it.
-        if (targetValue === undefined) {
-          targetValue === schemaValue.default;
+        if (target[schemaKey] === undefined) {
+          target[schemaKey] === schemaValue.default;
           break;
         }
         // If it's set in target, we type-check it.
-        if (typeof targetValue !== 'string') {
+        if (typeof target[schemaKey] !== 'string') {
           throw Error(`@validateBySchema : "${schemaKey}" at target must be typeof string.`);
         }
         break;
       }
       case 'number': {
-        const targetValue = target[schemaKey];
         // If it's not set in target, we set it.
-        if (targetValue === undefined) {
-          targetValue === schemaValue.default;
+        if (target[schemaKey] === undefined) {
+          target[schemaKey] === schemaValue.default;
           break;
         }
         // If it's set in target, we type-check it.
-        if (typeof targetValue !== 'number') {
+        if (typeof target[schemaKey] !== 'number') {
           throw Error(`@validateBySchema : "${schemaKey}" at target must be typeof number.`);
-        } else if (Number.isNaN(targetValue) === true) {
+        } else if (Number.isNaN(target[schemaKey]) === true) {
           throw Error(`@validateBySchema : "${schemaKey}" at target must not be NaN.`);
-        } else if (Number.isFinite(targetValue) === false) {
+        } else if (Number.isFinite(target[schemaKey]) === false) {
           throw Error(`@validateBySchema : "${schemaKey}" at target must be finite.`);
         }
         break;
       }
       case 'array': {
-        const targetValue = target[schemaKey];
         // If it's not set in target, we break.
-        if (targetValue === undefined) {
+        if (target[schemaKey] === undefined) {
           break;
         }
         // If it's set in target, we type-check it.
-        if (Array.isArray(targetValue) !== false) {
+        const targetValue = target[schemaKey];
+        if (Array.isArray(targetValue) === false) {
           throw Error(`@validateBySchema : "${schemaKey}" at target must be a plain array.`);
         }
         switch (schemaValue.accept) {
@@ -509,18 +510,12 @@ class Query {
 }
 
 class Table {
-  constructor(label, database, schema) {
+  constructor(label, database) {
     if (database instanceof Database === false) {
       throw Error('@constructor : "database" must be instance of Database.');
     }
     if (database.initialized === false && database.initializing === false) {
       throw Error('@constructor : Cannot create table on non-initialized database.');
-    }
-    if (schema !== undefined) {
-      if (isPlainObject(schema) === false) {
-        throw Error('@constructor : "schema" must be a plain object.');
-      }
-      this.schema = schema;
     }
     this.label = label;
     this.database = database;
@@ -529,6 +524,9 @@ class Table {
       return database.tables.get(label);
     }
     database.tables.set(label, this);
+    if (database.schemas !== undefined && database.schemas[label] !== undefined) {
+      this.schema = database.schemas[label];
+    }
   }
 
   randomItemId() {
@@ -550,6 +548,9 @@ class Table {
       id,
       ...data
     }, true);
+    if (this.schema !== undefined) {
+      validateBySchema(this.schema, item);
+    }
     this.index.set(id, item);
     await this.database.save();
     if (returnClone === true) {
@@ -776,14 +777,21 @@ class Database {
       if (isPlainObject(options.schemas) === false) {
         throw Error('@constructor : options.schemas must be a plain object.');
       }
+      const schemaHashes = {};
       const keys = Object.keys(options.schemas);
       for (let i = 0, l = keys.length; i < l; i += 1) {
         const key = keys[i];
         logFunction(`schemas : Validating "${key}" schema..`);
-        validateSchema(options.schemas[key]);
+        const schema = options.schemas[key];
+        validateSchema(schema);
         logFunction(`schemas : "${key}" schema valid.`);
+        logFunction(`schemas : Hashing "${key}" schema..`);
+        const hash = sha256(JSON.stringify(schema));
+        schemaHashes[key] = hash;
+        logFunction(`schemas : "${key}" : ${hash}`);
       }
       this.schemas = options.schemas;
+      this.schemaHashes = schemaHashes;
       logFunction(`schemas : "${keys}"`);
     }
 
@@ -944,8 +952,15 @@ class Database {
       for (let i = 0, l = dataTables.length; i < l; i += 1) {
         const [label, items] = dataTables[i];
         const table = new Table(label, this);
-        for (let a = 0, b = items.length; a < b; a += 1) {
-          table.index.set(items[a].id, items[a]);
+        if (this.schemas !== undefined && this.schemas[label] !== undefined) {
+          for (let a = 0, b = items.length; a < b; a += 1) {
+            validateBySchema(this.schemas[label], items[a]);
+            table.index.set(items[a].id, items[a]);
+          }
+        } else {
+          for (let a = 0, b = items.length; a < b; a += 1) {
+            table.index.set(items[a].id, items[a]);
+          }
         }
       }
       for (let i = 0, l = dataKVTables.length; i < l; i += 1) {

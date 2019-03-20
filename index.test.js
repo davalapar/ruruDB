@@ -13,7 +13,15 @@ const db = new Database({
       age: { type: 'number', default: 0 },
       onboarded: { type: 'boolean', default: false },
       roles: { type: 'array', accept: 'string' },
+      address: { type: 'string', default: '' },
     }
+  },
+  updateFunctions: {
+    Members: (item) => {
+      return {
+        ...item,
+      };
+    },
   }
 });
 
@@ -306,4 +314,14 @@ test('t24: KVTable 1', async () => {
   const x = t24.get('x');
   expect(x).toBe(1);
   await t24.clear();
+});
+
+test('t25', async () => {
+  const Members = new Table('Members', db);
+  await Members.insertItem(Members.randomItemId(), {
+    name: 'RuruDB',
+    age: 23,
+    onboarded: true,
+    roles: ['user', 'admin']
+  });
 });
