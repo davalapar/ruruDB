@@ -187,12 +187,19 @@ const sampleSchema = {
   name: { type: 'string', default: '' },
   age: { type: 'number', default: 0 },
   active: { type: 'boolean', default: false },
-  tags: { type: 'array', accept: 'string', default: '' }
+  tags: { type: 'array', accept: 'string' }
 };
 
 /**
  * @param {Object} schema Item schema.
  * @param {Object} target Initial item data.
+ * 
+ * Example types & defaults:
+ * - type='boolean', default=false
+ * - type='string', default=''
+ * - type='number', default=0
+ * - type='array', default='boolean'|'string'|'number'
+ * 
  * @returns {Object} Finalized item data.
  */
 const validateBySchema = (schema, target) => {
@@ -204,9 +211,46 @@ const validateBySchema = (schema, target) => {
     const schemaKey = schemaKeys[i];
     const schemaValue = target[key];
     if (isPlainObject(schemaValue) === false) {
-      throw Error(`@validateBySchema : Unexpected non-plain-object at "${schemaKey}"`);
+      throw Error(`@validateBySchema : Unexpected non-plain-object at schemaKey "${schemaKey}"`);
+    }
+    if (schemaValue.type === undefined) {
+      throw Error(`@validateBySchema : Unexpected non-string "type" at schemaKey "${schemaKey}"`);
     }
     switch (schemaValue.type) {
+      case 'boolean': {
+        // Initially, the default value must be valid
+        if (typeof schemaValue.default !== 'boolean') {
+          throw Error(`@validateBySchema : "default" at "${schemaKey}" must be typeof boolean.`);
+        }
+        const targetValue = target[schemaKey];
+        // If it's not set in target, we set it.
+        if (targetValue === undefined) {
+          targetValue === schemaValue.default;
+          break;
+        }
+        // If it's set in target, we type-check it.
+        if (typeof targetValue !== 'boolean') {
+          throw Error(`@validateBySchema : "${schemaKey}" at target must be typeof boolean.`);
+        }
+        break;
+      }
+      case 'string': {
+        // Initially, the default value must be valid
+        if (typeof schemaValue.default !== 'string') {
+          throw Error(`@validateBySchema : "default" at "${schemaKey}" must be typeof string.`);
+        }
+        const targetValue = target[schemaKey];
+        // If it's not set in target, we set it.
+        if (targetValue === undefined) {
+          targetValue === schemaValue.default;
+          break;
+        }
+        // If it's set in target, we type-check it.
+        if (typeof targetValue !== 'string') {
+          throw Error(`@validateBySchema : "${schemaKey}" at target must be typeof string.`);
+        }
+        break;
+      }
       case 'number': {
         // Initially, the default value must be valid
         if (typeof schemaValue.default !== 'number') {
@@ -216,32 +260,76 @@ const validateBySchema = (schema, target) => {
         } else if (Number.isFinite(schemaValue.default) === false) {
           throw Error(`@validateBySchema : "default" at "${schemaKey}" must be finite.`);
         }
+        const targetValue = target[schemaKey];
         // If it's not set in target, we set it.
-        if (target[schemaKey] === undefined) {
-          target[schemaKey] === schemaValue.default;
+        if (targetValue === undefined) {
+          targetValue === schemaValue.default;
           break;
         }
         // If it's set in target, we type-check it.
-        if (typeof target[schemaKey] !== 'number') {
+        if (typeof targetValue !== 'number') {
           throw Error(`@validateBySchema : "${schemaKey}" at target must be typeof number.`);
-        } else if (Number.isNaN(target[schemaKey]) === true) {
+        } else if (Number.isNaN(targetValue) === true) {
           throw Error(`@validateBySchema : "${schemaKey}" at target must not be NaN.`);
-        } else if (Number.isFinite(target[schemaKey]) === false) {
+        } else if (Number.isFinite(targetValue) === false) {
           throw Error(`@validateBySchema : "${schemaKey}" at target must be finite.`);
         }
         break;
       }
-      case 'string': {
-        break;
-      }
-      case 'boolean': {
-        break;
-      }
       case 'array': {
+        // Initially, the accept value must be valid
+        if (typeof schemaValue.accept !== 'string') {
+          throw Error(`@validateBySchema : "accept" at "${schemaKey}" must be typeof string.`);
+        }
+        const targetValue = target[schemaKey];
+        // If it's not set in target, we break.
+        if (targetValue === undefined) {
+          break;
+        }
+        // If it's set in target, we type-check it.
+        if (Array.isArray(targetValue) !== false) {
+          throw Error(`@validateBySchema : "${schemaKey}" at target must be a plain array.`);
+        }
+        switch (schemaValue.accept) {
+          case 'boolean': {
+            for (let a = 0, b = targetValue.length; a < b; a += 1) {
+              const innerValue = targetValue[a];
+              if (typeof innerValue !== 'boolean') {
+                throw Error(`@validateBySchema : index "${a}" of "${schemaKey}" at target must be typeof boolean.`);
+              }
+            }
+            break;
+          }
+          case 'string': {
+            for (let a = 0, b = targetValue.length; a < b; a += 1) {
+              const innerValue = targetValue[a];
+              if (typeof innerValue !== 'string') {
+                throw Error(`@validateBySchema : index "${a}" of "${schemaKey}" at target must be typeof string.`);
+              }
+            }
+            break;
+          }
+          case 'number': {
+            for (let a = 0, b = targetValue.length; a < b; a += 1) {
+              const innerValue = targetValue[a];
+              if (typeof innerValue !== 'number') {
+                throw Error(`@validateBySchema : index "${a}" of "${schemaKey}" at target must be typeof number.`);
+              } else if (Number.isNaN(schemaValue.default) === true) {
+                throw Error(`@validateBySchema : index "${a}" of "${schemaKey}" at target must not be NaN.`);
+              } else if (Number.isFinite(schemaValue.default) === false) {
+                throw Error(`@validateBySchema : index "${a}" of "${schemaKey}" at target must be finite.`);
+              }
+            }
+            break;
+          }
+          default: {
+            throw Error(`@validateBySchema : "accept" at "${schemaKey}" must be 'boolean'|'string'|'number'.`);
+          }
+        }
         break;
       }
       default: {
-        break;
+        throw Error(`@validateBySchema : "type" must be 'boolean'|'string'|'number'|'array', got "${type}".`);
       }
     }
   }
