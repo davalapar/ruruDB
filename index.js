@@ -198,13 +198,21 @@ const sampleSchema = {
  * - type='boolean', default=false
  * - type='string', default=''
  * - type='number', default=0
- * - type='array', default='boolean'|'string'|'number'
+ * - type='array', accept='boolean'|'string'|'number'
+ * 
+ * Notes:
+ * - 'type' & 'default' for 'boolean', 'string' & 'number'
+ * - 'type' & 'accept' for 'array'
+ * - 'null' and 'undefined' values are not accepted
  * 
  * @returns {Object} Finalized item data.
  */
-const validateBySchema = (schema, target) => {
+
+const validateSchema = (schema) => {
   if (schema === undefined) {
-    throw Error('@validateBySchema : "schema" must not be undefined.');
+    throw Error('@validateSchema : "schema" must not be undefined.');
+  } else if (isPlainObject(schema) === false) {
+    throw Error('@validateSchema : "schema" must be a plain object.');
   }
   const schemaKeys = Object.keys(this.schema);
   for (let i = 0, l = schemaKeys.length; i < l; i += 1) {
@@ -218,10 +226,53 @@ const validateBySchema = (schema, target) => {
     }
     switch (schemaValue.type) {
       case 'boolean': {
-        // Initially, the default value must be valid
         if (typeof schemaValue.default !== 'boolean') {
           throw Error(`@validateBySchema : "default" at "${schemaKey}" must be typeof boolean.`);
         }
+        break;
+      }
+      case 'string': {
+        if (typeof schemaValue.default !== 'string') {
+          throw Error(`@validateBySchema : "default" at "${schemaKey}" must be typeof string.`);
+        }
+        break;
+      }
+      case 'number': {
+        if (typeof schemaValue.default !== 'number') {
+          throw Error(`@validateBySchema : "default" at "${schemaKey}" must be typeof number.`);
+        } else if (Number.isNaN(schemaValue.default) === true) {
+          throw Error(`@validateBySchema : "default" at "${schemaKey}" must not be NaN.`);
+        } else if (Number.isFinite(schemaValue.default) === false) {
+          throw Error(`@validateBySchema : "default" at "${schemaKey}" must be finite.`);
+        }
+        break;
+      }
+      case 'array': {
+        if (typeof schemaValue.accept !== 'string') {
+          throw Error(`@validateBySchema : "accept" at "${schemaKey}" must be typeof string.`);
+        }
+        if (schemaValue.accept !== 'boolean' && schemaValue.accept !== 'string' && schemaValue.accept !== 'number') {
+          throw Error(`@validateBySchema : "accept" at "${schemaKey}" must be 'boolean'|'string'|'number'.`);
+        }
+        break;
+      }
+      default: {
+        throw Error(`@validateBySchema : "type" must be 'boolean'|'string'|'number'|'array', got "${type}".`);
+      }
+    }
+  }
+};
+
+const validateBySchema = (schema, target) => {
+  if (schema === undefined) {
+    throw Error('@validateBySchema : "schema" must not be undefined.');
+  }
+  const schemaKeys = Object.keys(this.schema);
+  for (let i = 0, l = schemaKeys.length; i < l; i += 1) {
+    const schemaKey = schemaKeys[i];
+    const schemaValue = target[key];
+    switch (schemaValue.type) {
+      case 'boolean': {
         const targetValue = target[schemaKey];
         // If it's not set in target, we set it.
         if (targetValue === undefined) {
@@ -235,10 +286,6 @@ const validateBySchema = (schema, target) => {
         break;
       }
       case 'string': {
-        // Initially, the default value must be valid
-        if (typeof schemaValue.default !== 'string') {
-          throw Error(`@validateBySchema : "default" at "${schemaKey}" must be typeof string.`);
-        }
         const targetValue = target[schemaKey];
         // If it's not set in target, we set it.
         if (targetValue === undefined) {
@@ -252,14 +299,6 @@ const validateBySchema = (schema, target) => {
         break;
       }
       case 'number': {
-        // Initially, the default value must be valid
-        if (typeof schemaValue.default !== 'number') {
-          throw Error(`@validateBySchema : "default" at "${schemaKey}" must be typeof number.`);
-        } else if (Number.isNaN(schemaValue.default) === true) {
-          throw Error(`@validateBySchema : "default" at "${schemaKey}" must not be NaN.`);
-        } else if (Number.isFinite(schemaValue.default) === false) {
-          throw Error(`@validateBySchema : "default" at "${schemaKey}" must be finite.`);
-        }
         const targetValue = target[schemaKey];
         // If it's not set in target, we set it.
         if (targetValue === undefined) {
@@ -277,10 +316,6 @@ const validateBySchema = (schema, target) => {
         break;
       }
       case 'array': {
-        // Initially, the accept value must be valid
-        if (typeof schemaValue.accept !== 'string') {
-          throw Error(`@validateBySchema : "accept" at "${schemaKey}" must be typeof string.`);
-        }
         const targetValue = target[schemaKey];
         // If it's not set in target, we break.
         if (targetValue === undefined) {
@@ -729,6 +764,29 @@ class KVTable {
 
 class Database {
   constructor(options) {
+    if (typeof options.filename !== 'string' || options.filename === '') {
+      throw Error('@constructor : options.filename must be a non-empty string.');
+    }
+    if (typeof options.directory !== 'string' || options.directory === '') {
+      throw Error('@constructor : options.directory must be a non-empty string.');
+    }
+    if (typeof options.saveFormat !== 'string') {
+      throw Error('@constructor : options.directory must be a string.');
+    }
+    if (options.saveFormat !== 'json' && options.saveFormat !== 'readable_json' && options.saveFormat !== 'msgpack') {
+      throw Error('@constructor : options.directory must be "json"|"readable_json"|"msgpack".');
+    }
+    if (options.schemas !== undefined) {
+      if (isPlainObject(options.schemas) === false) {
+        throw Error('@constructor : options.schemas must be a plain object.');
+      }
+      const keys = Object.keys(options.schemas);
+      for (let i = 0, l = keys; i < l; i += 1) {
+        const key = keys[i];
+        validateSchema(options.schemas[key]);
+      }
+      this.schemas = options.schemas;
+    }
     this.logFunction = options.logFunction;
     this.filename = options.filename;
     this.directory = options.directory;
@@ -774,7 +832,6 @@ class Database {
       }
     }
     this.saveFormat = options.saveFormat;
-
     this.tables = new Map();
     this.kvtables = new Map();
     this.snapshotInterval = options.snapshotInterval ? ms(options.snapshotInterval) : Infinity;
