@@ -372,7 +372,7 @@ const validateBySchema = (schema, target) => {
 
 class Query {
   constructor(table) {
-    if (database instanceof Table === false) {
+    if (table instanceof Table === false) {
       throw Error('@constructor : "table" must be instance of Table.');
     }
     this.resultItems = [];
@@ -764,18 +764,26 @@ class KVTable {
 
 class Database {
   constructor(options) {
+    if (options.logFunction !== 'undefined') {
+      if (typeof options.logFunction !== 'function') {
+        throw Error('@constructor : options.logFunction must be a function.');
+      }
+    }
+    const logFunction = options.logFunction ? options.logFunction : () => {};
+    this.logFunction = logFunction;
+
     if (typeof options.filename !== 'string' || options.filename === '') {
       throw Error('@constructor : options.filename must be a non-empty string.');
     }
+    logFunction(`filename : "${options.filename}"`);
+    this.filename = options.filename;
+
     if (typeof options.directory !== 'string' || options.directory === '') {
       throw Error('@constructor : options.directory must be a non-empty string.');
     }
-    if (typeof options.saveFormat !== 'string') {
-      throw Error('@constructor : options.directory must be a string.');
-    }
-    if (options.saveFormat !== 'json' && options.saveFormat !== 'readable_json' && options.saveFormat !== 'msgpack') {
-      throw Error('@constructor : options.directory must be "json"|"readable_json"|"msgpack".');
-    }
+    logFunction(`directory : "${options.directory}"`);
+    this.directory = options.directory;
+
     if (options.schemas !== undefined) {
       if (isPlainObject(options.schemas) === false) {
         throw Error('@constructor : options.schemas must be a plain object.');
@@ -783,13 +791,22 @@ class Database {
       const keys = Object.keys(options.schemas);
       for (let i = 0, l = keys; i < l; i += 1) {
         const key = keys[i];
+        logFunction(`schemas : Validating "${key}" schema..`);
         validateSchema(options.schemas[key]);
+        logFunction(`schemas : "${key}" schema valid.`);
       }
       this.schemas = options.schemas;
     }
-    this.logFunction = options.logFunction;
-    this.filename = options.filename;
-    this.directory = options.directory;
+
+    if (typeof options.saveFormat !== 'string') {
+      throw Error('@constructor : options.directory must be a string.');
+    }
+    if (options.saveFormat !== 'json' && options.saveFormat !== 'readable_json' && options.saveFormat !== 'msgpack') {
+      throw Error('@constructor : options.directory must be "json"|"readable_json"|"msgpack".');
+    }
+    logFunction(`saveFormat : "${options.saveFormat}"`);
+    this.saveFormat = options.saveFormat;
+
     switch (options.saveFormat) {
       case 'json': {
         this.main = options.directory.concat('/', options.filename, '-current.rrdb');
@@ -810,31 +827,36 @@ class Database {
         this.temp = options.directory.concat('/', options.filename, '-temp.prrdb');
         this.recent = options.directory.concat('/', options.filename, '-recent.prrdb');
         this.snapshotExtension = '-snapshot.prrdb';
-        if (options.msgpackBufferSize === undefined) {
-          throw Error('@constructor : options.msgpackBufferSize must be a "number"');
+        logFunction(`msgpackBufferSize : "${options.msgpackBufferSize}"`);
+        if (typeof options.msgpackBufferSize !== 'number') {
+          throw Error('@constructor : options.msgpackBufferSize must be a number.');
+        } else if (Number.isNaN(options.msgpackBufferSize) === true) {
+          throw Error('@constructor : options.msgpackBufferSize must not be NaN.');
+        } else if (Number.isFinite(options.msgpackBufferSize) === false) {
+          throw Error('@constructor : options.msgpackBufferSize must be finite.');
         }
-        if (options.logFunction !== undefined) {
-          if (typeof options.logFunction !== 'function') {
-            throw Error('@constructor : options.logFunction must be a "function"');
-          }
-          const { encode: msgpackEncode, decode: msgpackDecode } = MessagePack.initialize(options.msgpackBufferSize, options.logFunction);
-          this.msgpackEncode = msgpackEncode;
-          this.msgpackDecode = msgpackDecode;
-        } else {
-          const { encode: msgpackEncode, decode: msgpackDecode } = MessagePack.initialize(options.msgpackBufferSize);
-          this.msgpackEncode = msgpackEncode;
-          this.msgpackDecode = msgpackDecode;
-        }
+        const { encode: msgpackEncode, decode: msgpackDecode } = MessagePack.initialize(options.msgpackBufferSize);
+        this.msgpackEncode = msgpackEncode;
+        this.msgpackDecode = msgpackDecode;
         break;
       }
       default: {
         throw Error('@constructor : options.saveFormat must be either "json", "readable_json" or "msgpack"');
       }
     }
-    this.saveFormat = options.saveFormat;
+    
+    logFunction(`snapshotInterval : "${options.snapshotInterval}"`);
+    if (options.snapshotInterval !== undefined) {
+      if (typeof options.snapshotInterval !== 'string') {
+        throw Error('@constructor : options.snapshotInterval must be a string');
+      }
+      this.snapshotInterval = ms(options.snapshotInterval);
+    } else {
+      this.snapshotInterval = Infinity;
+    }
+
     this.tables = new Map();
     this.kvtables = new Map();
-    this.snapshotInterval = options.snapshotInterval ? ms(options.snapshotInterval) : Infinity;
     this.lastSnapshotTimestamp = -Infinity;
     this.saving = false;
     this.queue = [];
