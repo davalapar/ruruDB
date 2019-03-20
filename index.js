@@ -121,7 +121,6 @@ const copyObject = (target, freeze) => {
   }
   return item;
 };
-
 function finalizeQuery (returnClone) {
   if (this.sorts.length > 0) {
     this.slicedItems.sort((a, b) => {
@@ -178,11 +177,80 @@ function finalizeQuery (returnClone) {
   }
   this.finalized = true;
 }
+const sampleItem = {
+  name: 'josh',
+  age: 25,
+  active: false,
+  tags: ['asshole', 'dickhead']
+};
+const sampleSchema = {
+  name: { type: 'string', default: '' },
+  age: { type: 'number', default: 0 },
+  active: { type: 'boolean', default: false },
+  tags: { type: 'array', accept: 'string', default: '' }
+};
+
+/**
+ * @param {Object} schema Item schema.
+ * @param {Object} target Initial item data.
+ * @returns {Object} Finalized item data.
+ */
+const validateBySchema = (schema, target) => {
+  if (schema === undefined) {
+    throw Error('@validateBySchema : "schema" must not be undefined.');
+  }
+  const schemaKeys = Object.keys(this.schema);
+  for (let i = 0, l = schemaKeys.length; i < l; i += 1) {
+    const schemaKey = schemaKeys[i];
+    const schemaValue = target[key];
+    if (isPlainObject(schemaValue) === false) {
+      throw Error(`@validateBySchema : Unexpected non-plain-object at "${schemaKey}"`);
+    }
+    switch (schemaValue.type) {
+      case 'number': {
+        // Initially, the default value must be valid
+        if (typeof schemaValue.default !== 'number') {
+          throw Error(`@validateBySchema : "default" at "${schemaKey}" must be typeof number.`);
+        } else if (Number.isNaN(schemaValue.default) === true) {
+          throw Error(`@validateBySchema : "default" at "${schemaKey}" must not be NaN.`);
+        } else if (Number.isFinite(schemaValue.default) === false) {
+          throw Error(`@validateBySchema : "default" at "${schemaKey}" must be finite.`);
+        }
+        // If it's not set in target, we set it.
+        if (target[schemaKey] === undefined) {
+          target[schemaKey] === schemaValue.default;
+          break;
+        }
+        // If it's set in target, we type-check it.
+        if (typeof target[schemaKey] !== 'number') {
+          throw Error(`@validateBySchema : "${schemaKey}" at target must be typeof number.`);
+        } else if (Number.isNaN(target[schemaKey]) === true) {
+          throw Error(`@validateBySchema : "${schemaKey}" at target must not be NaN.`);
+        } else if (Number.isFinite(target[schemaKey]) === false) {
+          throw Error(`@validateBySchema : "${schemaKey}" at target must be finite.`);
+        }
+        break;
+      }
+      case 'string': {
+        break;
+      }
+      case 'boolean': {
+        break;
+      }
+      case 'array': {
+        break;
+      }
+      default: {
+        break;
+      }
+    }
+  }
+};
 
 class Query {
   constructor(table) {
-    if (typeof table !== 'object') {
-      throw Error('@constructor : Expecting "table" to be typeof "object"');
+    if (database instanceof Table === false) {
+      throw Error('@constructor : "table" must be instance of Table.');
     }
     this.resultItems = [];
     this.slicedItems = Array.from(table.index.values());
@@ -330,9 +398,18 @@ class Query {
 }
 
 class Table {
-  constructor(label, database) {
+  constructor(label, database, schema) {
+    if (database instanceof Database === false) {
+      throw Error('@constructor : "database" must be instance of Database.');
+    }
     if (database.initialized === false && database.initializing === false) {
       throw Error('@constructor : Cannot create table on non-initialized database.');
+    }
+    if (schema !== undefined) {
+      if (isPlainObject(schema) === false) {
+        throw Error('@constructor : "schema" must be a plain object.');
+      }
+      this.schema = schema;
     }
     this.label = label;
     this.database = database;
@@ -491,6 +568,9 @@ class Table {
 
 class KVTable {
   constructor(label, database) {
+    if (database instanceof Database === false) {
+      throw Error('@constructor : "database" must be instance of Database.');
+    }
     if (database.initialized === false && database.initializing === false) {
       throw Error('@Cannot create KVTable on non-initialized database.');
     }
