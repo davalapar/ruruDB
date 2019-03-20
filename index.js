@@ -177,18 +177,6 @@ function finalizeQuery (returnClone) {
   }
   this.finalized = true;
 }
-const sampleItem = {
-  name: 'josh',
-  age: 25,
-  active: false,
-  tags: ['asshole', 'dickhead']
-};
-const sampleSchema = {
-  name: { type: 'string', default: '' },
-  age: { type: 'number', default: 0 },
-  active: { type: 'boolean', default: false },
-  tags: { type: 'array', accept: 'string' }
-};
 
 /**
  * @param {Object} schema Item schema.
@@ -214,10 +202,10 @@ const validateSchema = (schema) => {
   } else if (isPlainObject(schema) === false) {
     throw Error('@validateSchema : "schema" must be a plain object.');
   }
-  const schemaKeys = Object.keys(this.schema);
+  const schemaKeys = Object.keys(schema);
   for (let i = 0, l = schemaKeys.length; i < l; i += 1) {
     const schemaKey = schemaKeys[i];
-    const schemaValue = target[key];
+    const schemaValue = schema[schemaKey];
     if (isPlainObject(schemaValue) === false) {
       throw Error(`@validateBySchema : Unexpected non-plain-object at schemaKey "${schemaKey}"`);
     }
@@ -267,10 +255,10 @@ const validateBySchema = (schema, target) => {
   if (schema === undefined) {
     throw Error('@validateBySchema : "schema" must not be undefined.');
   }
-  const schemaKeys = Object.keys(this.schema);
+  const schemaKeys = Object.keys(schema);
   for (let i = 0, l = schemaKeys.length; i < l; i += 1) {
     const schemaKey = schemaKeys[i];
-    const schemaValue = target[key];
+    const schemaValue = schema[schemaKey];
     switch (schemaValue.type) {
       case 'boolean': {
         const targetValue = target[schemaKey];
@@ -789,13 +777,14 @@ class Database {
         throw Error('@constructor : options.schemas must be a plain object.');
       }
       const keys = Object.keys(options.schemas);
-      for (let i = 0, l = keys; i < l; i += 1) {
+      for (let i = 0, l = keys.length; i < l; i += 1) {
         const key = keys[i];
         logFunction(`schemas : Validating "${key}" schema..`);
         validateSchema(options.schemas[key]);
         logFunction(`schemas : "${key}" schema valid.`);
       }
       this.schemas = options.schemas;
+      logFunction(`schemas : "${keys}"`);
     }
 
     if (typeof options.saveFormat !== 'string') {

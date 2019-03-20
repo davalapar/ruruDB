@@ -5,9 +5,16 @@ const { Item, Database, Table, Query, KVTable } = require('./index');
 const db = new Database({
   filename: 'test',
   directory: './temp',
-  saveFormat: "msgpack",
-  msgpackBufferSize: 2 ** 22,
+  saveFormat: "json",
   logFunction: console.log,
+  schemas: {
+    Members: {
+      name: { type: 'string', default: '' },
+      age: { type: 'number', default: 0 },
+      onboarded: { type: 'boolean', default: false },
+      roles: { type: 'array', accept: 'string' },
+    }
+  }
 });
 
 beforeAll(async () => {
@@ -147,7 +154,7 @@ test('t13: abuse test case # 2 ', async () => {
   }), 0);
   await sleep(4000);
   clearInterval(i);
-  // await t13.clear();
+  await t13.clear();
   expect(true).toBe(true);
 });
 
