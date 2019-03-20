@@ -995,7 +995,6 @@ class Database {
             }
             validateBySchema(schema, item);
           }
-          this.logFunction(`Table "${label}" : setting index "${a}"`);
           table.index.set(item.id, copyObject(item, true));
         }
       }
