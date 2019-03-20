@@ -267,7 +267,7 @@ const validateBySchema = (schema, target) => {
       case 'boolean': {
         // If it's not set in target, we set it.
         if (target[schemaKey] === undefined) {
-          target[schemaKey] === schemaValue.default;
+          target[schemaKey] = schemaValue.default;
           break;
         }
         // If it's set in target, we type-check it.
@@ -279,7 +279,7 @@ const validateBySchema = (schema, target) => {
       case 'string': {
         // If it's not set in target, we set it.
         if (target[schemaKey] === undefined) {
-          target[schemaKey] === schemaValue.default;
+          target[schemaKey] = schemaValue.default;
           break;
         }
         // If it's set in target, we type-check it.
@@ -291,7 +291,7 @@ const validateBySchema = (schema, target) => {
       case 'number': {
         // If it's not set in target, we set it.
         if (target[schemaKey] === undefined) {
-          target[schemaKey] === schemaValue.default;
+          target[schemaKey] = schemaValue.default;
           break;
         }
         // If it's set in target, we type-check it.
@@ -307,6 +307,7 @@ const validateBySchema = (schema, target) => {
       case 'array': {
         // If it's not set in target, we break.
         if (target[schemaKey] === undefined) {
+          target[schemaKey] = [];
           break;
         }
         // If it's set in target, we type-check it.
@@ -526,6 +527,7 @@ class Table {
     database.tables.set(label, this);
     if (database.schemas !== undefined && database.schemas[label] !== undefined) {
       this.schema = database.schemas[label];
+      this.schemaHash = database.schemaHashes[label];
     }
   }
 
@@ -544,13 +546,11 @@ class Table {
     if (this.index.has(id)) {
       throw Error('@insertItem : Invalid "id", must not exist in table');
     }
-    const item = copyObject({
-      id,
-      ...data
-    }, true);
+    const temp = { id, ...data };
     if (this.schema !== undefined) {
-      validateBySchema(this.schema, item);
+      validateBySchema(this.schema, temp);
     }
+    const item = copyObject(temp, true);
     this.index.set(id, item);
     await this.database.save();
     if (returnClone === true) {
@@ -568,6 +568,9 @@ class Table {
     }
     if (this.index.has(modifiedItem.id) === false) {
       throw Error('@updateItem : Invalid "item", item "id" must exist in table');
+    }
+    if (this.schema !== undefined) {
+      validateBySchema(this.schema, modifiedItem);
     }
     const item = copyObject(modifiedItem, true);
     this.index.set(item.id, item);
@@ -588,10 +591,11 @@ class Table {
     if (this.index.has(id) === false) {
       throw Error('@updateItemById : Invalid "id", must exist in table');
     }
-    const item = copyObject({
-      id,
-      ...data,
-    }, true);
+    const temp = { id, ...data };
+    if (this.schema !== undefined) {
+      validateBySchema(this.schema, temp);
+    }
+    const item = copyObject(temp, true);
     this.index.set(id, item);
     await this.database.save();
     if (returnClone === true) {
@@ -610,12 +614,12 @@ class Table {
     if (this.index.has(id) === false) {
       throw Error('@mergeItemById : Invalid "item", "id" must exist in table');
     }
-    const existing = this.index.get(id);
-    const item = copyObject({
-      id,
-      ...existing,
-      ...data,
-    }, true);
+    const existing = this.index.get(id);    
+    const temp = { id, ...existing, ...data };
+    if (this.schema !== undefined) {
+      validateBySchema(this.schema, temp);
+    }
+    const item = copyObject(temp, true);
     this.index.set(id, item);
     await this.database.save();
     if (returnClone === true) {
@@ -792,7 +796,20 @@ class Database {
       }
       this.schemas = options.schemas;
       this.schemaHashes = schemaHashes;
-      logFunction(`schemas : "${keys}"`);
+      logFunction(`schemas : "${keys.join(', ')}"`);
+      if (options.updateFunctions !== undefined) {
+        if (isPlainObject(options.updateFunctions) === false) {
+          throw Error('@constructor : options.updateFunctions must be a plain object.');
+        }
+        const keys = Object.keys(options.updateFunctions);
+        for (let i = 0, l = keys.length; i < l; i += 1) {
+          const key = keys[i];
+          if (typeof options.updateFunctions[key] !== 'function') {
+            throw Error(`@constructor : index "${i}" at options.updateFunctions must be a function`);
+          }
+        }
+        this.updateFunctions = options.updateFunctions;
+      }
     }
 
     if (typeof options.saveFormat !== 'string') {
@@ -949,18 +966,37 @@ class Database {
         throw Error(`@internalLoad : rurudbVersion mismatch, ${rurudbVersionLoaded} !== ${rurudbVersion}`);
       }
       this.initializing = true;
+      let recordsUpdated = false;
+      this.logFunction('@internalLoad : Loading tables.');
       for (let i = 0, l = dataTables.length; i < l; i += 1) {
-        const [label, items] = dataTables[i];
+        const [label, items, schemaHash] = dataTables[i];
         const table = new Table(label, this);
+        let schema;
+        let updateFunction;
         if (this.schemas !== undefined && this.schemas[label] !== undefined) {
-          for (let a = 0, b = items.length; a < b; a += 1) {
-            validateBySchema(this.schemas[label], items[a]);
-            table.index.set(items[a].id, items[a]);
+          schema = this.schemas[label];
+          if (this.schemaHashes[label] !== schemaHash) {
+            this.logFunction(`Table "${label}" : schema hash mismatch`);
+            if (this.updateFunctions === undefined || this.updateFunctions[label] === undefined) {
+              throw Error (`"Table "${label}" : updateFunction not found`);
+            }
+            updateFunction = this.updateFunctions[label];
           }
-        } else {
-          for (let a = 0, b = items.length; a < b; a += 1) {
-            table.index.set(items[a].id, items[a]);
+        }
+        this.logFunction(`Table "${label}" : loading items`);
+        for (let a = 0, b = items.length; a < b; a += 1) {
+          let item = items[a];
+          if (schema !== undefined) {
+            if (updateFunction !== undefined) {
+              if (recordsUpdated === false) {
+                recordsUpdated = true;
+              }
+              item = updateFunction(item);
+            }
+            validateBySchema(schema, item);
           }
+          this.logFunction(`Table "${label}" : setting index "${a}"`);
+          table.index.set(item.id, copyObject(item, true));
         }
       }
       for (let i = 0, l = dataKVTables.length; i < l; i += 1) {
@@ -971,9 +1007,13 @@ class Database {
         }
       }
       this.initializing = false;
-      this.logFunction('@internalLoad : tables populated.');
+      this.logFunction('@internalLoad : table(s) populated.');
+      if (recordsUpdated === true) {
+        this.logFunction('@internalLoad : table(s) updated, saving db.');
+        await this.internalSave();
+      }
     } else {
-      this.logFunction('@internalLoad : file not loaded, saving empty db.');
+      this.logFunction('@internalLoad : no file loaded, saving db.');
       await this.internalSave();
     }
   }
@@ -1010,7 +1050,12 @@ class Database {
       for (let i = 0, l = tables.length; i < l; i += 1) {
         const [label, table] = tables[i];
         const items = Array.from(table.index.values());
-        dataTables[i] = [label, items];
+        if (this.schemaHashes !== undefined && this.schemaHashes[label] !== undefined) {
+          const hash = this.schemaHashes[label];
+          dataTables[i] = [label, items, hash];
+        } else {
+          dataTables[i] = [label, items];
+        }
       }
 
       const kvtables = Array.from(this.kvtables.entries());

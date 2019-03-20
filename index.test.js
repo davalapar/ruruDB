@@ -5,7 +5,7 @@ const { Item, Database, Table, Query, KVTable } = require('./index');
 const db = new Database({
   filename: 'test',
   directory: './temp',
-  saveFormat: "json",
+  saveFormat: "readable_json",
   logFunction: console.log,
   schemas: {
     Members: {
