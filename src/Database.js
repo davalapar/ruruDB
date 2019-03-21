@@ -5,10 +5,8 @@ const { promisify } = require('util');
 const ms = require('ms');
 const tinydate = require('tinydate');
 const MessagePack = require('what-the-pack');
-const isPlainObject = require('lodash/isPlainObject');
 
 const createValidator = require('./helpers/createValidator');
-const sha256 = require('./helpers/sha256');
 const validateSchema = require('./helpers/validateSchema');
 const validateBySchema = require('./helpers/validateBySchema');
 const copyObject = require('./helpers/copyObject');
@@ -28,11 +26,10 @@ const mkdir = promisify(fs.mkdir);
 
 
 // Database Version
-const rurudbVersion = 9;
+const currentMajorVersion = 9;
 
 // Helper Functions
 const dateToString = tinydate('{DD}-{MM}-{YY}-{HH}-{mm}-{ss}');
-
 
 class Database {
   constructor(options) {
@@ -117,10 +114,44 @@ class Database {
     // new:
     this.itemSchemas = {};
     this.outdatedItemUpdaters = {};
+    this.loadedTables = undefined;
+    this.loadedKVTables = undefined;
+    this.loading = false;
+    this.loaded = false;
     this.served = false;
   }
 
+  loadDatabaseFile() {
+    if (this.served) {
+      throw Error('initTable : db already served');
+    } else if (this.loading) {
+      throw Error('initTable : db file already loading');
+    } else if (this.loaded === true) {
+      throw Error('initTable : db file already loaded');
+    }
+
+    this.loading = true;
+
+    // loading goes here
+
+    this.loading = false;
+    this.loaded = true;
+  }
+
+  serve() {
+    this.loadedTables = undefined;
+    this.loadedKVTables = undefined;
+    this.served = true;
+  }
+
   initTable(tableLabel, itemSchema, outdatedItemUpdater) {
+    if (this.served) {
+      throw Error('initTable : db already served');
+    } else if (this.loading) {
+      throw Error('initTable : db file still loading');
+    } else if (this.loaded === false) {
+      throw Error('initTable : db file not yet loaded');
+    }
     const validate = createValidator('initTable');
     validate('tableLabel').asString(tableLabel);
     validate('itemSchema').asObject(itemSchema);
@@ -135,7 +166,9 @@ class Database {
   }
 
   getTable() {
-    console.log(this);
+    if (this.served === false) {
+      throw Error('initTable : db not yet served');
+    }
   }
 
   getKVTable() {
@@ -217,17 +250,19 @@ class Database {
       if (this.saveFormat === 'json' || this.saveFormat === 'readable_json') {
         data = JSON.parse(dbDataString.toString());
       } else { // msgpack
-        data = (this.msgpackDecode)(dbDataString);
+        data = this.msgpackDecode(dbDataString);
       }
       this.logFunction('@internalLoad  file loaded, populating tables.');
       const [dataMeta, dataTables, dataKVTables] = data;
-      const [filenameLoaded, rurudbVersionLoaded] = dataMeta;
+      const [filenameLoaded, currentMajorVersionLoaded] = dataMeta;
       if (filenameLoaded !== this.filename) {
-        throw Error(`@internalLoad : filename mismatch, ${filenameLoaded} !== ${this.filename}`);
+        throw Error(`@internalLoad : filename mismatch, "${filenameLoaded}" !== "${this.filename}"`);
       }
-      if (rurudbVersionLoaded !== rurudbVersion) {
-        throw Error(`@internalLoad : rurudbVersion mismatch, ${rurudbVersionLoaded} !== ${rurudbVersion}`);
+      if (currentMajorVersionLoaded !== currentMajorVersion) {
+        throw Error(`@internalLoad : database version mismatch, "${currentMajorVersionLoaded}" !== "${currentMajorVersion}"`);
       }
+      this.loadedTables = dataTables;
+      this.loadedKVTables = dataKVTables;
       this.initializing = true;
       let recordsUpdated = false;
       this.logFunction('@internalLoad : Loading tables.');
@@ -330,7 +365,7 @@ class Database {
       }
 
       const { filename } = this;
-      const dataMeta = [filename, rurudbVersion];
+      const dataMeta = [filename, currentMajorVersion];
 
       const data = [
         dataMeta,
