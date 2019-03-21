@@ -12,6 +12,6 @@ module.exports = {
       "jest": true,
   },
   "rules": {
-    "max-len": false,
+    "max-len": 0,
   }
 };
