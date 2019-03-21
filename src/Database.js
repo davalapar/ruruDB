@@ -39,6 +39,7 @@ class Database {
     const validate = createValidator('constructor');
 
     validate('options').asObject(options);
+
     const {
       logFunction,
       filename,
@@ -56,36 +57,6 @@ class Database {
 
     validate('directory').asString(directory);
     this.directory = directory;
-
-    if (schemas !== undefined) {
-      if (isPlainObject(schemas) === false) {
-        throw Error('@constructor : schemas must be a plain object.');
-      }
-      const schemaHashes = {};
-      const schemaKeys = Object.keys(schemas);
-      for (let i = 0, l = schemaKeys.length; i < l; i += 1) {
-        const key = schemaKeys[i];
-        const schema = schemas[key];
-        validateSchema(schema);
-        const hash = sha256(JSON.stringify(schema));
-        schemaHashes[key] = hash;
-      }
-      this.schemas = schemas;
-      this.schemaHashes = schemaHashes;
-      if (updateFunctions !== undefined) {
-        if (isPlainObject(updateFunctions) === false) {
-          throw Error('@constructor : updateFunctions must be a plain object.');
-        }
-        const keys = Object.keys(updateFunctions);
-        for (let i = 0, l = keys.length; i < l; i += 1) {
-          const key = keys[i];
-          if (typeof updateFunctions[key] !== 'function') {
-            throw Error(`@constructor : index "${i}" at updateFunctions must be a function`);
-          }
-        }
-        this.updateFunctions = updateFunctions;
-      }
-    }
 
     validate('saveFormat').asString(saveFormat);
     validate('saveFormat').asOneOf(['json', 'readable_json', 'msgpack'], saveFormat);
@@ -124,9 +95,6 @@ class Database {
 
     if (snapshotInterval !== undefined) {
       validate('snapshotInterval').asString('snapshotInterval');
-      if (typeof snapshotInterval !== 'string') {
-        throw Error('@constructor : snapshotInterval must be a string');
-      }
       this.snapshotInterval = ms(snapshotInterval);
     } else {
       this.snapshotInterval = Infinity;
@@ -145,6 +113,11 @@ class Database {
     this.recentFd = 0;
     this.initialized = false;
     this.initializing = false;
+
+    // new:
+    this.itemSchemas = {};
+    this.outdatedItemUpdaters = {};
+    this.served = false;
   }
 
   initTable(tableLabel, itemSchema, outdatedItemUpdater) {
@@ -152,7 +125,9 @@ class Database {
     validate('tableLabel').asString(tableLabel);
     validate('itemSchema').asObject(itemSchema);
     validate('outdatedItemUpdater').asFunction(outdatedItemUpdater);
-    console.log(this);
+    validateSchema(itemSchema);
+    this.itemSchemas[tableLabel] = itemSchema;
+    this.outdatedItemUpdaters[tableLabel] = outdatedItemUpdater;
   }
 
   initKVTable() {
