@@ -7,6 +7,7 @@ const tinydate = require('tinydate');
 const MessagePack = require('what-the-pack');
 const isPlainObject = require('lodash/isPlainObject');
 
+const createValidator = require('./helpers/createValidator');
 const sha256 = require('./helpers/sha256');
 const validateSchema = require('./helpers/validateSchema');
 const validateBySchema = require('./helpers/validateBySchema');
@@ -32,116 +33,101 @@ const rurudbVersion = 9;
 // Helper Functions
 const dateToString = tinydate('{DD}-{MM}-{YY}-{HH}-{mm}-{ss}');
 
+
 class Database {
   constructor(options) {
-    if (options.logFunction !== 'undefined') {
-      if (typeof options.logFunction !== 'function') {
-        throw Error('@constructor : options.logFunction must be a function.');
-      }
-    }
-    const logFunction = options.logFunction ? options.logFunction : () => {};
+    const validate = createValidator('constructor');
+
+    validate('options').asObject(options);
+    const {
+      logFunction,
+      filename,
+      directory,
+      saveFormat,
+      msgpackBufferSize,
+      snapshotInterval,
+    } = options;
+
+    validate('logFunction').asFunction(logFunction);
     this.logFunction = logFunction;
 
-    if (typeof options.filename !== 'string' || options.filename === '') {
-      throw Error('@constructor : options.filename must be a non-empty string.');
-    }
-    logFunction(`filename : "${options.filename}"`);
-    this.filename = options.filename;
+    validate('filename').asString(filename);
+    this.filename = filename;
 
-    if (typeof options.directory !== 'string' || options.directory === '') {
-      throw Error('@constructor : options.directory must be a non-empty string.');
-    }
-    logFunction(`directory : "${options.directory}"`);
-    this.directory = options.directory;
+    validate('directory').asString(directory);
+    this.directory = directory;
 
-    if (options.schemas !== undefined) {
-      if (isPlainObject(options.schemas) === false) {
-        throw Error('@constructor : options.schemas must be a plain object.');
+    if (schemas !== undefined) {
+      if (isPlainObject(schemas) === false) {
+        throw Error('@constructor : schemas must be a plain object.');
       }
       const schemaHashes = {};
-      const schemaKeys = Object.keys(options.schemas);
+      const schemaKeys = Object.keys(schemas);
       for (let i = 0, l = schemaKeys.length; i < l; i += 1) {
         const key = schemaKeys[i];
-        logFunction(`schemas : Validating "${key}" schema..`);
-        const schema = options.schemas[key];
+        const schema = schemas[key];
         validateSchema(schema);
-        logFunction(`schemas : "${key}" schema valid.`);
-        logFunction(`schemas : Hashing "${key}" schema..`);
         const hash = sha256(JSON.stringify(schema));
         schemaHashes[key] = hash;
-        logFunction(`schemas : "${key}" : ${hash}`);
       }
-      this.schemas = options.schemas;
+      this.schemas = schemas;
       this.schemaHashes = schemaHashes;
-      logFunction(`schemas : "${schemaKeys.join(', ')}"`);
-      if (options.updateFunctions !== undefined) {
-        if (isPlainObject(options.updateFunctions) === false) {
-          throw Error('@constructor : options.updateFunctions must be a plain object.');
+      if (updateFunctions !== undefined) {
+        if (isPlainObject(updateFunctions) === false) {
+          throw Error('@constructor : updateFunctions must be a plain object.');
         }
-        const keys = Object.keys(options.updateFunctions);
+        const keys = Object.keys(updateFunctions);
         for (let i = 0, l = keys.length; i < l; i += 1) {
           const key = keys[i];
-          if (typeof options.updateFunctions[key] !== 'function') {
-            throw Error(`@constructor : index "${i}" at options.updateFunctions must be a function`);
+          if (typeof updateFunctions[key] !== 'function') {
+            throw Error(`@constructor : index "${i}" at updateFunctions must be a function`);
           }
         }
-        this.updateFunctions = options.updateFunctions;
+        this.updateFunctions = updateFunctions;
       }
     }
 
-    if (typeof options.saveFormat !== 'string') {
-      throw Error('@constructor : options.directory must be a string.');
-    }
-    if (options.saveFormat !== 'json' && options.saveFormat !== 'readable_json' && options.saveFormat !== 'msgpack') {
-      throw Error('@constructor : options.directory must be "json"|"readable_json"|"msgpack".');
-    }
-    logFunction(`saveFormat : "${options.saveFormat}"`);
-    this.saveFormat = options.saveFormat;
+    validate('saveFormat').asString(saveFormat);
+    validate('saveFormat').asOneOf(['json', 'readable_json', 'msgpack'], saveFormat);
+    this.saveFormat = saveFormat;
 
-    switch (options.saveFormat) {
+    switch (saveFormat) {
       case 'json': {
-        this.main = options.directory.concat('/', options.filename, '-current.rrdb');
-        this.temp = options.directory.concat('/', options.filename, '-temp.rrdb');
-        this.recent = options.directory.concat('/', options.filename, '-recent.rrdb');
+        this.main = directory.concat('/', filename, '-current.rrdb');
+        this.temp = directory.concat('/', filename, '-temp.rrdb');
+        this.recent = directory.concat('/', filename, '-recent.rrdb');
         this.snapshotExtension = '-snapshot.rrdb';
         break;
       }
       case 'readable_json': {
-        this.main = options.directory.concat('/', options.filename, '-current.rrdb');
-        this.temp = options.directory.concat('/', options.filename, '-temp.rrdb');
-        this.recent = options.directory.concat('/', options.filename, '-recent.rrdb');
+        this.main = directory.concat('/', filename, '-current.rrdb');
+        this.temp = directory.concat('/', filename, '-temp.rrdb');
+        this.recent = directory.concat('/', filename, '-recent.rrdb');
         this.snapshotExtension = '-snapshot.rrdb';
         break;
       }
       case 'msgpack': {
-        this.main = options.directory.concat('/', options.filename, '-current.prrdb');
-        this.temp = options.directory.concat('/', options.filename, '-temp.prrdb');
-        this.recent = options.directory.concat('/', options.filename, '-recent.prrdb');
+        this.main = directory.concat('/', filename, '-current.prrdb');
+        this.temp = directory.concat('/', filename, '-temp.prrdb');
+        this.recent = directory.concat('/', filename, '-recent.prrdb');
         this.snapshotExtension = '-snapshot.prrdb';
-        logFunction(`msgpackBufferSize : "${options.msgpackBufferSize}"`);
-        if (typeof options.msgpackBufferSize !== 'number') {
-          throw Error('@constructor : options.msgpackBufferSize must be a number.');
-        } else if (Number.isNaN(options.msgpackBufferSize) === true) {
-          throw Error('@constructor : options.msgpackBufferSize must not be NaN.');
-        } else if (Number.isFinite(options.msgpackBufferSize) === false) {
-          throw Error('@constructor : options.msgpackBufferSize must be finite.');
-        }
-        const { encode: msgpackEncode, decode: msgpackDecode } = MessagePack.initialize(options.msgpackBufferSize);
+        validate('msgpackBufferSize').asNumber(msgpackBufferSize);
+        const { encode: msgpackEncode, decode: msgpackDecode } = MessagePack.initialize(msgpackBufferSize);
         this.msgpackEncode = msgpackEncode;
         this.msgpackDecode = msgpackDecode;
         break;
       }
       default: {
-        throw Error('@constructor : options.saveFormat must be either "json", "readable_json" or "msgpack"');
+        throw Error('@constructor : saveFormat must be either "json", "readable_json" or "msgpack"');
       }
     }
 
-    logFunction(`snapshotInterval : "${options.snapshotInterval}"`);
-    if (options.snapshotInterval !== undefined) {
-      if (typeof options.snapshotInterval !== 'string') {
-        throw Error('@constructor : options.snapshotInterval must be a string');
+    if (snapshotInterval !== undefined) {
+      validate('snapshotInterval').asString('snapshotInterval');
+      if (typeof snapshotInterval !== 'string') {
+        throw Error('@constructor : snapshotInterval must be a string');
       }
-      this.snapshotInterval = ms(options.snapshotInterval);
+      this.snapshotInterval = ms(snapshotInterval);
     } else {
       this.snapshotInterval = Infinity;
     }
@@ -159,6 +145,30 @@ class Database {
     this.recentFd = 0;
     this.initialized = false;
     this.initializing = false;
+  }
+
+  initTable(tableLabel, itemSchema, outdatedItemUpdater) {
+    const validate = createValidator('initTable');
+    validate('tableLabel').asString(tableLabel);
+    validate('itemSchema').asObject(itemSchema);
+    validate('outdatedItemUpdater').asFunction(outdatedItemUpdater);
+    console.log(this);
+  }
+
+  initKVTable() {
+    console.log(this);
+  }
+
+  getTable() {
+    console.log(this);
+  }
+
+  getKVTable() {
+    console.log(this);
+  }
+
+  queryTable() {
+    console.log(this);
   }
 
   async initialize() {
