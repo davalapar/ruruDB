@@ -1,4 +1,6 @@
-/* eslint-disable no-console */
+/* eslint-disable no-console, strict */
+
+'use strict';
 
 const { Database } = require('./index');
 
@@ -24,50 +26,114 @@ beforeAll(async () => {
   await db.serve();
 });
 
-test('Members', async () => {
+const aliceData = {
+  name: 'alice',
+  age: 23,
+  onboarded: true,
+  roles: ['user', 'admin'],
+};
+
+test('Basic insert', async () => {
   const Members = db.getTable('Members');
-  await Members.insertItem(Members.randomItemId(), {
-    name: 'RuruDB',
-    age: 23,
-    onboarded: true,
-    roles: ['user', 'admin'],
-  });
+  await Members.insertItem(Members.randomItemId(), aliceData);
+});
+
+test('Basic update', async () => {
+  const Members = db.getTable('Members');
+  const alice = await Members.insertItem(Members.randomItemId(), aliceData, true);
+  alice.age = 24;
+  const updated = await Members.updateItem(alice);
+  expect(updated.age).toBe(24);
+});
+
+
+test('Throw on string schema mismatch', async () => {
+  expect((async () => {
+    const Members = db.getTable('Members');
+    const alice = await Members.insertItem(Members.randomItemId(), aliceData, true);
+    alice.name = false;
+    await Members.updateItem(alice);
+  })()).rejects.toThrow();
+});
+
+test('Throw on number schema mismatch', async () => {
+  expect((async () => {
+    const Members = db.getTable('Members');
+    const alice = await Members.insertItem(Members.randomItemId(), aliceData, true);
+    alice.age = false;
+    await Members.updateItem(alice);
+  })()).rejects.toThrow();
+});
+
+test('Throw on boolean schema mismatch', async () => {
+  expect((async () => {
+    const Members = db.getTable('Members');
+    const alice = await Members.insertItem(Members.randomItemId(), aliceData, true);
+    alice.onboarded = 'true';
+    await Members.updateItem(alice);
+  })()).rejects.toThrow();
+});
+
+test('Throw on array schema mismatch, outer', async () => {
+  expect((async () => {
+    const Members = db.getTable('Members');
+    const alice = await Members.insertItem(Members.randomItemId(), aliceData, true);
+    alice.roles = true;
+    await Members.updateItem(alice);
+  })()).rejects.toThrow();
+});
+
+test('Throw on array schema mismatch, inner', async () => {
+  expect((async () => {
+    const Members = db.getTable('Members');
+    const alice = await Members.insertItem(Members.randomItemId(), aliceData, true);
+    alice.roles = [true];
+    await Members.updateItem(alice);
+  })()).rejects.toThrow();
+});
+
+test('Does not throw on string schema match', async () => {
+  expect((async () => {
+    const Members = db.getTable('Members');
+    const alice = await Members.insertItem(Members.randomItemId(), aliceData, true);
+    alice.name = 'alice alicey';
+    await Members.updateItem(alice);
+  })()).resolves.toBeUndefined();
+});
+
+test('Does not throw on number schema match', async () => {
+  expect((async () => {
+    const Members = db.getTable('Members');
+    const alice = await Members.insertItem(Members.randomItemId(), aliceData, true);
+    alice.age = 24;
+    await Members.updateItem(alice);
+  })()).resolves.toBeUndefined();
+});
+
+test('Does not throw on boolean schema match', async () => {
+  expect((async () => {
+    const Members = db.getTable('Members');
+    const alice = await Members.insertItem(Members.randomItemId(), aliceData, true);
+    alice.onboarded = true;
+    await Members.updateItem(alice);
+  })()).resolves.toBeUndefined();
+});
+
+test('Throw on non-existent table', async () => {
+  expect(() => {
+    db.getTable('Non-existent-table');
+  }).toThrow();
+});
+
+test('Throw on frozen item modification', async () => {
+  const Members = db.getTable('Members');
+  const alice = await Members.insertItem(Members.randomItemId(), aliceData);
+  expect(() => {
+    alice.name = 'this should throw error';
+  }).toThrow();
 });
 
 /*
-test('t1: table label', async () => {
-  const t1 = db.table('t1');
-  await t1.clear();
-  expect(t1.label).toBe('t1');
-});
-
-test('t2: insertItem, randomItemId', async () => {
-  const t2 = db.table('t2');
-  await t2.clear();
-  const aliceId = t2.randomItemId();
-  const aliceData = { name: 'alice', age: 25 };
-  await t2.insertItem(aliceId, aliceData);
-  expect(t2.index.has(aliceId)).toBe(true);
-  expect(t2.insertItem(aliceId, aliceData)).rejects.toThrow();
-  await t2.clear();
-});
-
-test('t3: updateItem', async () => {
-  const t3 = db.table('t3');
-  await t3.clear();
-  const aliceId = t3.randomItemId();
-  const aliceData = { name: 'alice', age: 25 };
-  const alice = await t3.insertItem(aliceId, aliceData, true);
-  expect(alice.name).toBe('alice');
-  expect(alice.age).toBe(25);
-  alice.age = 26;
-  await t3.updateItem(alice);
-  const fetched = t3.index.get(aliceId);
-  if (fetched !== undefined) {
-    expect(fetched.age).toBe(26);
-  }
-  await t3.clear();
-});
 
 test('t4: updateItemById', async () => {
   const t4 = db.table('t4');

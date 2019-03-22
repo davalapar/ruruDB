@@ -50,7 +50,7 @@ class Table {
     validate('modifiedItem').asObject(modifiedItem);
     validate('modifiedItem.id').asString(modifiedItem.id);
     if (this.index.has(modifiedItem.id) === false) {
-      throw Error('@updateItem : Invalid "item", item "id" must exist in table');
+      throw Error('@updateItem : Invalid "modifiedItem", item "id" must exist in table');
     }
     const item = copyObject(validateInsertedUpdatedItem(this.schema, modifiedItem), true);
     this.index.set(item.id, item);
@@ -86,7 +86,7 @@ class Table {
     validate('data').asObject(data);
     validate('data.id').asString(data.id);
     if (this.index.has(id) === false) {
-      throw Error('@mergeItemById : Invalid "item", "id" must exist in table');
+      throw Error('@mergeItemById : Invalid "id", "id" must exist in table');
     }
     const existing = this.index.get(id);
     const item = copyObject(validateInsertedUpdatedItem(this.schema, { id, ...existing, ...data }), true);
@@ -123,7 +123,7 @@ class Table {
     const validate = createValidator('fetchItem');
     validate('id').asString(id);
     if (this.index.has(id) === false) {
-      throw Error('@fetchItem : Invalid "item", "id" must exist in table');
+      throw Error('@fetchItem : Invalid "id", "id" must exist in table');
     }
     const item = this.index.get(id);
     if (returnClone === true) {
