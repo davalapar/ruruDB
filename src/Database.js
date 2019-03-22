@@ -157,6 +157,9 @@ class Database {
     }
     const validate = createValidator('initTable');
     validate('tableLabel').asString(tableLabel);
+    if (this.tables.has(tableLabel) === true) {
+      throw Error(`initTable : table "${tableLabel}" already initialized`);
+    }
     validate('itemSchema').asObject(itemSchema);
     validate('outdatedItemUpdater').asFunction(outdatedItemUpdater);
     validateSchema(itemSchema);
@@ -187,26 +190,64 @@ class Database {
       }
     }
     this.tables.set(tableLabel, table);
-    this.itemSchemas[tableLabel] = itemSchema;
-    this.outdatedItemUpdaters[tableLabel] = outdatedItemUpdater;
   }
 
-  initKVTable() {
-    console.log(this);
-  }
-
-  getTable() {
-    if (this.served === false) {
-      throw Error('initTable : db not yet served');
+  initKVTable(tableLabel, shouldExist) {
+    if (this.served) {
+      throw Error('initKVTable : db already served');
+    } else if (this.loading) {
+      throw Error('initKVTable : db file still loading');
+    } else if (this.loaded === false) {
+      throw Error('initKVTable : db file not yet loaded');
+    }
+    const validate = createValidator('initKVTable');
+    validate('tableLabel').asString(tableLabel);
+    if (this.kvtables.has(tableLabel) === true) {
+      throw Error(`initKVTable : table "${tableLabel}" already initialized`);
+    }
+    const tableData = this.loadedKVTables.find(t => t[0] === tableLabel);
+    if (tableData === undefined) {
+      if (shouldExist === true) {
+        throw Error(`initKVTable : table "${tableLabel}" not found`);
+      } else {
+        // create:
+        const table = new KVTable(tableLabel, this);
+        this.tables.set(tableLabel, table);
+      }
+    } else {
+      // populate:
+      const keys = tableData[1];
+      const values = tableData[2];
+      const kvtable = new KVTable(tableLabel, this);
+      for (let a = 0, b = keys.length; a < b; a += 1) {
+        kvtable.index.set(keys[a], values[a]);
+      }
+      this.kvtables.set(tableLabel, kvtable);
     }
   }
 
-  getKVTable() {
-    console.log(this);
+  getTable(tableLabel) {
+    if (this.served === false) {
+      throw Error('getTable : db not yet served');
+    }
+    const validate = createValidator('getTable');
+    validate('tableLabel').asString(tableLabel);
+    if (this.tables.has(tableLabel) === false) {
+      throw Error(`getTable : "${tableLabel}" KVTable not found, must exist`);
+    }
+    return this.tables.get(tableLabel);
   }
 
-  queryTable() {
-    console.log(this);
+  getKVTable(tableLabel) {
+    if (this.served === false) {
+      throw Error('getKVTable : db not yet served');
+    }
+    const validate = createValidator('getKVTable');
+    validate('tableLabel').asString(tableLabel);
+    if (this.kvtables.has(tableLabel) === false) {
+      throw Error(`getKVTable : "${tableLabel}" KVTable not found, must exist`);
+    }
+    return this.kvtables.get(tableLabel);
   }
 
   async internalLoad() {
@@ -422,22 +463,6 @@ class Database {
       throw Error('@save : Cannot call "save" on non-initialized database.');
     }
     await this.internalSave();
-  }
-
-  table(label) {
-    if (this.tables.has(label) === false) {
-      throw Error(`@table : "${label}" Table not found, must exist`);
-    }
-    const table = new Table(label, this);
-    return table;
-  }
-
-  kvtable(label) {
-    if (this.kvtables.has(label) === false) {
-      throw Error(`@kvtable : "${label}" KVTable not found, must exist`);
-    }
-    const kvtable = new KVTable(label, this);
-    return kvtable;
   }
 }
 
