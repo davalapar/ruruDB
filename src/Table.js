@@ -2,31 +2,22 @@
 const uuidv4 = require('uuid/v4');
 const isPlainObject = require('lodash/isPlainObject');
 
-const validateBySchema = require('./helpers/validateBySchema');
-const copyObject = require('./helpers/validateBySchema');
+const validateInsertedUpdatedItem = require('./helpers/validateInsertedUpdatedItem');
+const copyObject = require('./helpers/copyObject');
+const createValidator = require('./helpers/createValidator');
 
 const Database = require('./Database');
 const Query = require('./Query');
 
+
 class Table {
-  constructor(label, database) {
-    if (database instanceof Database === false) {
-      throw Error('@constructor : "database" must be instance of Database.');
-    }
-    if (database.initialized === false && database.initializing === false) {
-      throw Error('@constructor : Cannot create table on non-initialized database.');
-    }
+  constructor(label, database, schema) {
+    const validate = createValidator('constructor');
+    validate('database').asInstanceOf(Database, database);
     this.label = label;
     this.database = database;
     this.index = new Map();
-    if (database.tables.has(label)) {
-      return database.tables.get(label);
-    }
-    database.tables.set(label, this);
-    if (database.schemas !== undefined && database.schemas[label] !== undefined) {
-      this.schema = database.schemas[label];
-      this.schemaHash = database.schemaHashes[label];
-    }
+    this.schema = schema;
   }
 
   randomItemId() {
@@ -44,11 +35,7 @@ class Table {
     if (this.index.has(id)) {
       throw Error('@insertItem : Invalid "id", must not exist in table');
     }
-    const temp = { id, ...data };
-    if (this.schema !== undefined) {
-      validateBySchema(this.schema, temp);
-    }
-    const item = copyObject(temp, true);
+    const item = copyObject(validateInsertedUpdatedItem(this.schema, { id, ...data }), true);
     this.index.set(id, item);
     await this.database.save();
     if (returnClone === true) {
@@ -67,10 +54,7 @@ class Table {
     if (this.index.has(modifiedItem.id) === false) {
       throw Error('@updateItem : Invalid "item", item "id" must exist in table');
     }
-    if (this.schema !== undefined) {
-      validateBySchema(this.schema, modifiedItem);
-    }
-    const item = copyObject(modifiedItem, true);
+    const item = copyObject(validateInsertedUpdatedItem(this.schema, modifiedItem), true);
     this.index.set(item.id, item);
     await this.database.save();
     if (returnClone === true) {
@@ -89,11 +73,7 @@ class Table {
     if (this.index.has(id) === false) {
       throw Error('@updateItemById : Invalid "id", must exist in table');
     }
-    const temp = { id, ...data };
-    if (this.schema !== undefined) {
-      validateBySchema(this.schema, temp);
-    }
-    const item = copyObject(temp, true);
+    const item = copyObject(validateInsertedUpdatedItem(this.schema, { id, ...data }), true);
     this.index.set(id, item);
     await this.database.save();
     if (returnClone === true) {
@@ -113,11 +93,7 @@ class Table {
       throw Error('@mergeItemById : Invalid "item", "id" must exist in table');
     }
     const existing = this.index.get(id);
-    const temp = { id, ...existing, ...data };
-    if (this.schema !== undefined) {
-      validateBySchema(this.schema, temp);
-    }
-    const item = copyObject(temp, true);
+    const item = copyObject(validateInsertedUpdatedItem(this.schema, { id, ...existing, ...data }), true);
     this.index.set(id, item);
     await this.database.save();
     if (returnClone === true) {

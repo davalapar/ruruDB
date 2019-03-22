@@ -8,7 +8,7 @@ const MessagePack = require('what-the-pack');
 
 const createValidator = require('./helpers/createValidator');
 const validateSchema = require('./helpers/validateSchema');
-const validateBySchema = require('./helpers/validateBySchema');
+const validateLoadedItem = require('./helpers/validateLoadedItem');
 const copyObject = require('./helpers/copyObject');
 
 const Table = require('./Table');
@@ -112,16 +112,16 @@ class Database {
     this.initializing = false;
 
     // new:
-    this.itemSchemas = {};
-    this.outdatedItemUpdaters = {};
     this.loadedTables = undefined;
     this.loadedKVTables = undefined;
     this.loading = false;
+    this.newTablesCreated = false;
+    this.outdatedItemsUpdated = false;
     this.loaded = false;
     this.served = false;
   }
 
-  loadDatabaseFile() {
+  async loadDatabaseFile() {
     if (this.served) {
       throw Error('initTable : db already served');
     } else if (this.loading) {
@@ -132,19 +132,22 @@ class Database {
 
     this.loading = true;
 
-    // loading goes here
+    await this.internalLoad();
 
     this.loading = false;
     this.loaded = true;
   }
 
-  serve() {
+  async serve() {
+    if (this.newTablesCreated === true || this.outdatedItemsUpdated === true) {
+      await this.internalSave();
+    }
     this.loadedTables = undefined;
     this.loadedKVTables = undefined;
     this.served = true;
   }
 
-  initTable(tableLabel, itemSchema, outdatedItemUpdater) {
+  initTable(tableLabel, itemSchema, outdatedItemUpdater, shouldExist) {
     if (this.served) {
       throw Error('initTable : db already served');
     } else if (this.loading) {
@@ -157,6 +160,33 @@ class Database {
     validate('itemSchema').asObject(itemSchema);
     validate('outdatedItemUpdater').asFunction(outdatedItemUpdater);
     validateSchema(itemSchema);
+    const tableData = this.loadedTables.find(t => t[0] === tableLabel);
+    if (tableData === undefined) {
+      if (shouldExist === true) {
+        throw Error(`initTable : table "${tableLabel}" not found`);
+      } else {
+        // create:
+        const table = new Table(tableLabel, this, itemSchema);
+        this.tables.set(tableLabel, table);
+      }
+    }
+    // populate:
+    const items = tableData[1];
+    const table = new Table(tableLabel, this, itemSchema);
+    for (let a = 0, b = items.length; a < b; a += 1) {
+      const loadedItem = items[a];
+      try {
+        validateLoadedItem(itemSchema, loadedItem);
+        table.index.set(loadedItem.id, copyObject(loadedItem, true));
+      } catch (e) {
+        const updatedItem = outdatedItemUpdater(loadedItem);
+        validate('updatedItem').asObject(updatedItem);
+        validateLoadedItem(itemSchema, updatedItem);
+        table.index.set(updatedItem.id, copyObject(updatedItem, true));
+        this.outdatedItemsUpdated = true;
+      }
+    }
+    this.tables.set(tableLabel, table);
     this.itemSchemas[tableLabel] = itemSchema;
     this.outdatedItemUpdaters[tableLabel] = outdatedItemUpdater;
   }
@@ -177,21 +207,6 @@ class Database {
 
   queryTable() {
     console.log(this);
-  }
-
-  async initialize() {
-    if (this.initialized === false) {
-      if (this.internalInitializePromise !== undefined) {
-        return this.internalInitializePromise;
-      }
-      this.internalInitializePromise = (async () => {
-        await this.internalLoad();
-        this.initialized = true;
-      })();
-      await this.internalInitializePromise;
-      this.internalInitializePromise = undefined;
-    }
-    return undefined;
   }
 
   async internalLoad() {
@@ -246,13 +261,13 @@ class Database {
       }
     }
     if (dbDataString.byteLength !== 0) {
-      let data; // eslint-disable-line
+      let data;
       if (this.saveFormat === 'json' || this.saveFormat === 'readable_json') {
         data = JSON.parse(dbDataString.toString());
       } else { // msgpack
         data = this.msgpackDecode(dbDataString);
       }
-      this.logFunction('@internalLoad  file loaded, populating tables.');
+      this.logFunction('@internalLoad : file loaded, populating tables.');
       const [dataMeta, dataTables, dataKVTables] = data;
       const [filenameLoaded, currentMajorVersionLoaded] = dataMeta;
       if (filenameLoaded !== this.filename) {
@@ -263,55 +278,6 @@ class Database {
       }
       this.loadedTables = dataTables;
       this.loadedKVTables = dataKVTables;
-      this.initializing = true;
-      let recordsUpdated = false;
-      this.logFunction('@internalLoad : Loading tables.');
-      for (let i = 0, l = dataTables.length; i < l; i += 1) {
-        const [label, items, schemaHash] = dataTables[i];
-        const table = new Table(label, this);
-        let schema;
-        let updateFunction;
-        if (this.schemas !== undefined && this.schemas[label] !== undefined) {
-          schema = this.schemas[label];
-          if (this.schemaHashes[label] !== schemaHash) {
-            this.logFunction(`Table "${label}" : schema hash mismatch`);
-            if (this.updateFunctions === undefined || this.updateFunctions[label] === undefined) {
-              throw Error(`"Table "${label}" : updateFunction not found`);
-            }
-            updateFunction = this.updateFunctions[label];
-          }
-        }
-        this.logFunction(`Table "${label}" : loading items`);
-        for (let a = 0, b = items.length; a < b; a += 1) {
-          let item = items[a];
-          if (schema !== undefined) {
-            if (updateFunction !== undefined) {
-              if (recordsUpdated === false) {
-                recordsUpdated = true;
-              }
-              item = updateFunction(item);
-            }
-            validateBySchema(schema, item);
-          }
-          table.index.set(item.id, copyObject(item, true));
-        }
-      }
-      for (let i = 0, l = dataKVTables.length; i < l; i += 1) {
-        const [label, keys, values] = dataKVTables[i];
-        const kvtable = new KVTable(label, this);
-        for (let a = 0, b = keys.length; a < b; a += 1) {
-          kvtable.index.set(keys[a], values[a]);
-        }
-      }
-      this.initializing = false;
-      this.logFunction('@internalLoad : table(s) populated.');
-      if (recordsUpdated === true) {
-        this.logFunction('@internalLoad : table(s) updated, saving db.');
-        await this.internalSave();
-      }
-    } else {
-      this.logFunction('@internalLoad : no file loaded, saving db.');
-      await this.internalSave();
     }
   }
 

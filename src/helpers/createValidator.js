@@ -42,6 +42,20 @@ const createValidator = (scope) => {
           throw Error(`${scope} : "${label}" not found in "${array.join(', ')}"`);
         }
       },
+      asInstanceOf: (targetClass, expectedClassInstance) => {
+        if (typeof targetClass !== 'object' || targetClass === null) {
+          throw Error('asInstanceOf : "targetClass" must be an object');
+        }
+        if (typeof targetClass.name !== 'string' || targetClass.name === '') {
+          throw Error('asInstanceOf : "targetClass" must have "name" non-empty string property');
+        }
+        if (typeof expectedClassInstance !== 'object' || expectedClassInstance === null) {
+          throw Error('asInstanceOf : "expectedClassInstance" must be an object');
+        }
+        if (expectedClassInstance instanceof targetClass === false) {
+          throw Error(`${scope} : "${label}" must be an instance of "${targetClass.name}"`);
+        }
+      },
     };
   };
 };
