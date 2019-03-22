@@ -84,7 +84,9 @@ class Table {
     const validate = createValidator('mergeItemById');
     validate('id').asString(id);
     validate('data').asObject(data);
-    validate('data.id').asString(data.id);
+    if (data.id !== undefined) {
+      throw Error('@mergeItemById : Invalid "data", "data" must not have "id" property');
+    }
     if (this.index.has(id) === false) {
       throw Error('@mergeItemById : Invalid "id", "id" must exist in table');
     }
@@ -117,6 +119,12 @@ class Table {
     }
     this.index.delete(id);
     await this.database.save();
+  }
+
+  hasId(id) {
+    const validate = createValidator('hasId');
+    validate('id').asString(id);
+    return this.index.has(id);
   }
 
   fetchItem(id, returnClone) {

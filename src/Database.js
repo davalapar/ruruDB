@@ -363,12 +363,7 @@ class Database {
       for (let i = 0, l = tables.length; i < l; i += 1) {
         const [label, table] = tables[i];
         const items = Array.from(table.index.values());
-        if (this.schemaHashes !== undefined && this.schemaHashes[label] !== undefined) {
-          const hash = this.schemaHashes[label];
-          dataTables[i] = [label, items, hash];
-        } else {
-          dataTables[i] = [label, items];
-        }
+        dataTables[i] = [label, items];
       }
 
       const kvtables = Array.from(this.kvtables.entries());

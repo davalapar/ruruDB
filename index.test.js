@@ -2,13 +2,14 @@
 
 'use strict';
 
-const { Database } = require('./index');
+const { Database, Query } = require('./index');
 
 const db = new Database({
   filename: 'test',
   directory: './temp',
   saveFormat: 'readable_json',
   logFunction: console.log,
+  snapshotInterval: '1m',
 });
 
 beforeAll(async () => {
@@ -32,20 +33,6 @@ const aliceData = {
   onboarded: true,
   roles: ['user', 'admin'],
 };
-
-test('Basic insert', async () => {
-  const Members = db.getTable('Members');
-  await Members.insertItem(Members.randomItemId(), aliceData);
-});
-
-test('Basic update', async () => {
-  const Members = db.getTable('Members');
-  const alice = await Members.insertItem(Members.randomItemId(), aliceData, true);
-  alice.age = 24;
-  const updated = await Members.updateItem(alice);
-  expect(updated.age).toBe(24);
-});
-
 
 test('Throw on string schema mismatch', async () => {
   expect((async () => {
@@ -133,111 +120,103 @@ test('Throw on frozen item modification', async () => {
   }).toThrow();
 });
 
+// TABLES
+
+test('Table insertItem', async () => {
+  const Members = db.getTable('Members');
+  await Members.insertItem(Members.randomItemId(), aliceData);
+});
+
+test('Table updateItem', async () => {
+  const Members = db.getTable('Members');
+  const alice = await Members.insertItem(Members.randomItemId(), aliceData, true);
+  alice.age = 24;
+  const updated = await Members.updateItem(alice);
+  expect(updated.age).toBe(24);
+});
+
+test('Table updateItemById', async () => {
+  const Members = db.getTable('Members');
+  const alice = await Members.insertItem(Members.randomItemId(), aliceData, true);
+  const updated = await Members.updateItemById(alice.id, aliceData);
+  expect(updated.age).toBe(23);
+});
+
+test('Table mergeItemById', async () => {
+  const Members = db.getTable('Members');
+  const initial = await Members.insertItem(Members.randomItemId(), aliceData, true);
+  const updated = await Members.mergeItemById(initial.id, { age: 25 });
+  expect(updated).toStrictEqual({ ...initial, age: 25 });
+});
+
+test('Table hasId', async () => {
+  const Members = db.getTable('Members');
+  const initial = await Members.insertItem(Members.randomItemId(), aliceData, true);
+  expect(Members.hasId(initial.id)).toBe(true);
+});
+
+test('Table fetchItem', async () => {
+  const Members = db.getTable('Members');
+  const initial = await Members.insertItem(Members.randomItemId(), aliceData, true);
+  expect(Members.fetchItem(initial.id)).toStrictEqual(initial);
+});
+
+test('Table removeItem', async () => {
+  const Members = db.getTable('Members');
+  const initial = await Members.insertItem(Members.randomItemId(), aliceData, true);
+  await Members.removeItem(initial);
+  expect(Members.hasId(initial.id)).toBe(false);
+});
+
+test('Table removeItem', async () => {
+  const Members = db.getTable('Members');
+  const initial = await Members.insertItem(Members.randomItemId(), aliceData, true);
+  await Members.removeItemById(initial.id);
+  expect(Members.hasId(initial.id)).toBe(false);
+});
+
+test('Query basic', async () => {
+  const Members = db.getTable('Members');
+  const results = Members.query().results();
+  expect(Array.isArray(results)).toBe(true);
+});
+
+test('Query results are frozen by default', async () => {
+  const Members = db.getTable('Members');
+  const results = Members.query().results();
+  expect(Array.isArray(results)).toBe(true);
+  expect(() => {
+    results[0].age = 25;
+  }).toThrow();
+});
+
+test('Query results are cloned properly', async () => {
+  const Members = db.getTable('Members');
+  const results = Members.query().results(true);
+  expect(Array.isArray(results)).toBe(true);
+  results[0].age = 25;
+  expect(results[0].age).toBe(25);
+});
+
+test('Query firstResult', async () => {
+  const Members = db.getTable('Members');
+  const result = new Query(Members).firstResult();
+  expect(typeof result).toBe('object');
+});
+
+test('Query hasResults', async () => {
+  const Members = db.getTable('Members');
+  const result = new Query(Members).hasResults();
+  expect(typeof result).toBe('boolean');
+});
+
+test('Query countResults', async () => {
+  const Members = db.getTable('Members');
+  const result = new Query(Members).countResults();
+  expect(typeof result).toBe('number');
+});
+
 /*
-
-test('t4: updateItemById', async () => {
-  const t4 = db.table('t4');
-  await t4.clear();
-  const aliceId = t4.randomItemId();
-  const aliceData = { name: 'alice', age: 25 };
-  let alice = await t4.insertItem(aliceId, aliceData);
-  expect(alice.name).toBe('alice');
-  expect(alice.age).toBe(25);
-  aliceData.age = 27;
-  alice = await t4.updateItemById(aliceId, aliceData);
-  expect(alice.age).toBe(27);
-  await t4.clear();
-});
-
-test('t5: mergeItemById', async () => {
-  const t5 = db.table('t5');
-  await t5.clear();
-  const aliceId = t5.randomItemId();
-  const aliceData = { name: 'alice', age: 25 };
-  let alice = await t5.insertItem(aliceId, aliceData);
-  alice = await t5.mergeItemById(aliceId, { address: 'yeah' });
-  expect(alice.address).toBe('yeah');
-  await t5.clear();
-});
-
-test('t6: removeItem ', async () => {
-  const t6 = db.table('t6');
-  await t6.clear();
-  const aliceId = t6.randomItemId();
-  const aliceData = { name: 'alice', age: 25 };
-  const alice = await t6.insertItem(aliceId, aliceData);
-  await t6.removeItem(alice);
-  expect(t6.index.size).toBe(0);
-  await t6.clear();
-});
-
-test('t7: removeItemById ', async () => {
-  const t7 = db.table('t7');
-  await t7.clear();
-  const aliceId = t7.randomItemId();
-  const aliceData = { name: 'alice', age: 25 };
-  await t7.insertItem(aliceId, aliceData);
-  await t7.removeItemById(aliceId);
-  expect(t7.index.size).toBe(0);
-  await t7.clear();
-});
-
-test('t8: fetchItemId ', async () => {
-  const t8 = db.table('t8');
-  await t8.clear();
-  const aliceId = t8.randomItemId();
-  const aliceData = { name: 'alice', age: 25 };
-  const alice = await t8.insertItem(aliceId, aliceData);
-  expect(alice.id).toBe(aliceId);
-  await t8.clear();
-});
-
-test('t9: fetchItem ', async () => {
-  const t9 = db.table('t9');
-  await t9.clear();
-  const aliceId = t9.randomItemId();
-  const aliceData = { name: 'alice', age: 25 };
-  const alice = await t9.insertItem(aliceId, aliceData);
-  const item = t9.fetchItem(aliceId);
-  expect(alice).toStrictEqual(item);
-  await t9.clear();
-});
-
-test('t10: removeTable ', async () => {
-  const t10 = db.table('t10');
-  await t10.clear();
-  await t10.destroy();
-  expect(db.tables.has('t10')).toStrictEqual(false);
-});
-
-const sleep = timeout => new Promise(resolve => setTimeout(resolve, timeout));
-
-test('t12: abuse test case # 1 ', async () => {
-  const t12 = db.table('t12');
-  const i = setInterval(() => t12.insertItem(t12.randomItemId(), { name: 'cath' }), 0);
-  await sleep(250);
-  clearInterval(i);
-  await t12.clear();
-  expect(true).toBe(true);
-});
-
-test('t13: abuse test case # 2 ', async () => {
-  const t13 = db.table('t13');
-  const i = setInterval(() => t13.insertItem(t13.randomItemId(), {
-    str: 'something',
-    number: 123,
-    bool: true,
-    null: null,
-    undefined,
-    roles: ['admin', 'user'],
-    numbers: [1, 2, 3, 4],
-  }), 0);
-  await sleep(4000);
-  clearInterval(i);
-  await t13.clear();
-  expect(true).toBe(true);
-});
-
 
 test('t14: basic Query', async () => {
   const t14 = db.table('t14');
@@ -386,6 +365,39 @@ test('t24: KVTable 1', async () => {
   const x = t24.get('x');
   expect(x).toBe(1);
   await t24.clear();
+});
+
+*/
+
+// ABUSE TEST CASES:
+/*
+
+const sleep = timeout => new Promise(resolve => setTimeout(resolve, timeout));
+
+test('t12: abuse test case # 1 ', async () => {
+  const t12 = db.table('t12');
+  const i = setInterval(() => t12.insertItem(t12.randomItemId(), { name: 'cath' }), 0);
+  await sleep(250);
+  clearInterval(i);
+  await t12.clear();
+  expect(true).toBe(true);
+});
+
+test('t13: abuse test case # 2 ', async () => {
+  const t13 = db.table('t13');
+  const i = setInterval(() => t13.insertItem(t13.randomItemId(), {
+    str: 'something',
+    number: 123,
+    bool: true,
+    null: null,
+    undefined,
+    roles: ['admin', 'user'],
+    numbers: [1, 2, 3, 4],
+  }), 0);
+  await sleep(4000);
+  clearInterval(i);
+  await t13.clear();
+  expect(true).toBe(true);
 });
 
 */

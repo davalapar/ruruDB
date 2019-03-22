@@ -13,6 +13,7 @@ RuruDB is a document database with basic features for prototyping purposes.
   - number array
 - Atomic database file saves
   - Data is first written to `*-temp.rrdb`
+  - If `snapshotInterval` has passed, copy `*-current.rrdb` to `*-DATE_TIME-snapshot.rrdb`
   - Stale data in `*-current.rrdb` is transferred to `*-old.rrdb`
   - Data is finally written to `*-curent.rrdb`
 - Adaptive file loads
@@ -33,8 +34,10 @@ RuruDB is a document database with basic features for prototyping purposes.
 ## IMPORTANT
 
 - This module uses `Object.freeze` for immutability & performance
-- Add `'use strict';` on your code to expose related errors
+- In JS engines, modifications made on frozen objects fail silently on non-strict mode
+- Therefore you must add `'use strict';` on your code to expose such errors
 - https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/freeze
+- For Babel users: https://babeljs.io/docs/en/next/babel-plugin-transform-strict-mode.html
 
 ## Database
 
@@ -122,6 +125,8 @@ module.exports = initialize;
 - async removeItem(item) => undefined
   - `item` Object
 - async removeItemById(id) => undefined
+  - `id` String
+- hasId(id) => Boolean
   - `id` String
 - fetchItem(id, returnClone) => Item
   - `id` String
