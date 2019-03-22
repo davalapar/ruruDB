@@ -1,51 +1,32 @@
 
 const Database = require('./Database');
+const createValidator = require('./helpers/createValidator');
 
 class KVTable {
   constructor(label, database) {
-    if (database instanceof Database === false) {
-      throw Error('@constructor : "database" must be instance of Database.');
-    }
-    if (database.initialized === false && database.initializing === false) {
-      throw Error('@Cannot create KVTable on non-initialized database.');
-    }
+    const validate = createValidator('constructor');
+    validate('database').asInstanceOf(Database, database);
     this.label = label;
     this.database = database;
     this.index = new Map();
-    if (database.kvtables.has(label)) {
-      return database.kvtables.get(label);
-    }
-    database.kvtables.set(label, this);
   }
 
   async set(key, value) {
-    if (key === undefined) {
-      throw Error('@set : Invalid "key", "key" must not be "undefined"');
-    }
-    if (typeof key !== 'string') {
-      throw Error('@set : Invalid "key", "key" must be typeof "string"');
-    }
+    const validate = createValidator('set');
+    validate('key').asString(key);
     this.index.set(key, value);
     await this.database.save();
   }
 
   has(key) {
-    if (key === undefined) {
-      throw Error('@set : Invalid "key", "key" must not be "undefined"');
-    }
-    if (typeof key !== 'string') {
-      throw Error('@set : Invalid "key", "key" must be typeof "string"');
-    }
+    const validate = createValidator('has');
+    validate('key').asString(key);
     return this.index.has(key);
   }
 
   get(key) {
-    if (key === undefined) {
-      throw Error('@get : Invalid "key", "key" must not be "undefined"');
-    }
-    if (typeof key !== 'string') {
-      throw Error('@set : Invalid "key", "key" must be typeof "string"');
-    }
+    const validate = createValidator('get');
+    validate('key').asString(key);
     if (this.index.has(key) === false) {
       throw Error('@get : Invalid "key", "key" must exist in KVTable');
     }
@@ -53,12 +34,8 @@ class KVTable {
   }
 
   async delete(key) {
-    if (key === undefined) {
-      throw Error('@set : Invalid "key", "key" must not be "undefined"');
-    }
-    if (typeof key !== 'string') {
-      throw Error('@set : Invalid "key", "key" must be typeof "string"');
-    }
+    const validate = createValidator('delete');
+    validate('key').asString(key);
     this.index.delete(key);
     await this.database.save();
   }

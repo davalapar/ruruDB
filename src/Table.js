@@ -29,9 +29,9 @@ class Table {
   }
 
   async insertItem(id, data, returnClone) {
-    if (isPlainObject(data) === false) {
-      throw Error('@insertItem : Invalid "data", "data" must be a plain object');
-    }
+    const validate = createValidator('insertItem');
+    validate('id').asString(id);
+    validate('data').asObject(data);
     if (this.index.has(id)) {
       throw Error('@insertItem : Invalid "id", must not exist in table');
     }
@@ -45,12 +45,9 @@ class Table {
   }
 
   async updateItem(modifiedItem, returnClone) {
-    if (isPlainObject(modifiedItem) === false) {
-      throw Error('@updateItem : Invalid "modifiedItem", "modifiedItem" must be a plain object');
-    }
-    if (modifiedItem.id === undefined) {
-      throw Error('@updateItem : Invalid "item", "id" must not be "undefined"');
-    }
+    const validate = createValidator('updateItem');
+    validate('modifiedItem').asObject(modifiedItem);
+    validate('modifiedItem.id').asString(modifiedItem.id);
     if (this.index.has(modifiedItem.id) === false) {
       throw Error('@updateItem : Invalid "item", item "id" must exist in table');
     }
@@ -64,9 +61,9 @@ class Table {
   }
 
   async updateItemById(id, data, returnClone) {
-    if (isPlainObject(data) === false) {
-      throw Error('@updateItemById : Invalid "data", "data" must be a plain object');
-    }
+    const validate = createValidator('updateItemById');
+    validate('id').asString(id);
+    validate('data').asObject(data);
     if (data.id !== undefined) {
       throw Error('@updateItemById : Invalid "data", "id" must be "undefined"');
     }
@@ -83,12 +80,10 @@ class Table {
   }
 
   async mergeItemById(id, data, returnClone) {
-    if (isPlainObject(data) === false) {
-      throw Error('@mergeItemById : Invalid "data", "data" must be a plain object');
-    }
-    if (data.id !== undefined) {
-      throw Error('@mergeItemById : Invalid "data", "id" must be "undefined"');
-    }
+    const validate = createValidator('mergeItemById');
+    validate('id').asString(id);
+    validate('data').asObject(data);
+    validate('data.id').asString(data.id);
     if (this.index.has(id) === false) {
       throw Error('@mergeItemById : Invalid "item", "id" must exist in table');
     }
@@ -103,12 +98,9 @@ class Table {
   }
 
   async removeItem(item) {
-    if (isPlainObject(item) === false) {
-      throw Error('@removeItem : Invalid "item", "item" must be a plain object');
-    }
-    if (item.id === undefined) {
-      throw Error('@removeItem : Invalid "item", "id" must not be "undefined"');
-    }
+    const validate = createValidator('removeItem');
+    validate('data').asObject(item);
+    validate('item.id').asString(item.id);
     if (this.index.has(item.id) === false) {
       throw Error('@removeItem : Invalid "item", "id" must exist in table');
     }
@@ -117,9 +109,8 @@ class Table {
   }
 
   async removeItemById(id) {
-    if (id === undefined) {
-      throw Error('@removeItemById : Invalid "id", "id" must not be "undefined"');
-    }
+    const validate = createValidator('removeItemById');
+    validate('id').asString(id);
     if (this.index.has(id) === false) {
       throw Error('@removeItemById : Invalid "id", "id" must exist in table');
     }
@@ -128,9 +119,8 @@ class Table {
   }
 
   fetchItem(id, returnClone) {
-    if (id === undefined) {
-      throw Error('@fetchItem : Invalid "id", "id" must not be "undefined"');
-    }
+    const validate = createValidator('fetchItem');
+    validate('id').asString(id);
     if (this.index.has(id) === false) {
       throw Error('@fetchItem : Invalid "item", "id" must exist in table');
     }
