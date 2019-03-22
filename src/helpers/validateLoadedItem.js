@@ -97,9 +97,9 @@ const validateLoadedItem = (schema, target) => {
               const innerValue = targetValue[a];
               if (typeof innerValue !== 'number') {
                 throw Error(`@validateLoadedItem : index "${a}" of "${schemaKey}" at target must be typeof number.`);
-              } else if (Number.isNaN(schemaValue.default) === true) {
+              } else if (Number.isNaN(innerValue) === true) {
                 throw Error(`@validateLoadedItem : index "${a}" of "${schemaKey}" at target must not be NaN.`);
-              } else if (Number.isFinite(schemaValue.default) === false) {
+              } else if (Number.isFinite(innerValue) === false) {
                 throw Error(`@validateLoadedItem : index "${a}" of "${schemaKey}" at target must be finite.`);
               }
             }

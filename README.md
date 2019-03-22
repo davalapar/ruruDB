@@ -49,7 +49,7 @@ RuruDB is a document database with basic features for prototyping purposes.
     - `json`, `readable_json`, `msgpack`
   - `options.msgpackBufferSize` Number Optional
   - `options.snapshotInterval` String Optional
-- async loadDAtabaseFile() => undefined
+- async loadDatabaseFile() => undefined
 - initTable(tableLabel, itemSchema, outdatedItemUpdater, shouldExist) => undefined
   - `tableLabel` String
   - `itemSchema` Object Schema
@@ -164,6 +164,14 @@ module.exports = initialize;
   - `field` String StringField NumberField
 - descend(field) => Query
   - `field` String StringField NumberField
+- ascendHaversine(field, latitude, longitude);
+  - `field` String StringField NumberArrayField
+  - `latitude` Number
+  - `longitude` Number
+- descendHaversine(field, latitude, longitude);
+  - `field` String StringField NumberArrayField
+  - `latitude` Number
+  - `longitude` Number
 - sortBy(sortFn) => Query
   - `sortFn` Function
 - gt(field, value) => Query
@@ -328,5 +336,11 @@ module.exports = initialize;
     - firstResult()
     - hasResults()
     - countResults()
+- 9.1.x
+  - Haversine sort
+    - Query().ascendHaversine(field, latitude, longitude);
+    - Query().descendHaversine(field, latitude, longitude);
+  - Fix typos in schema validation code
+  - Schema-based type-checks on `field` parameters of Query methods 
 
 MIT | @davalapar

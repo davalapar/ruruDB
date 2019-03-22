@@ -24,6 +24,14 @@ beforeAll(async () => {
     },
     () => {},
   );
+  db.initTable(
+    'Locations',
+    {
+      label: { type: 'string', default: '' },
+      coordinates: { type: 'array', accept: 'number' },
+    },
+    () => {},
+  );
   await db.serve();
 });
 
@@ -214,6 +222,36 @@ test('Query countResults', async () => {
   const Members = db.getTable('Members');
   const result = new Query(Members).countResults();
   expect(typeof result).toBe('number');
+});
+
+test('Haversine', async () => {
+  const Locations = db.getTable('Locations');
+  const rizal = await Locations.insertItem(Locations.randomItemId(), {
+    label: 'Rizal Park',
+    coordinates: [14.5831, 120.9794],
+  });
+  await Locations.insertItem(Locations.randomItemId(), {
+    label: 'Manila Bay',
+    coordinates: [14.5188, 120.7580],
+  });
+  await Locations.insertItem(Locations.randomItemId(), {
+    label: 'Taal Volcano',
+    coordinates: [14.0113, 120.9977],
+  });
+  await Locations.insertItem(Locations.randomItemId(), {
+    label: 'Star City',
+    coordinates: [14.5566, 120.9852],
+  });
+  const boracay = await Locations.insertItem(Locations.randomItemId(), {
+    label: 'Boracay',
+    coordinates: [11.9674, 121.9248],
+  });
+  const results = new Query(Locations)
+    .ascendHaversine('coordinates', 14.609053699999997, 121.02225650000001)
+    .results();
+  expect(results[0]).toStrictEqual(rizal);
+  expect(results[4]).toStrictEqual(boracay);
+  await Locations.clear();
 });
 
 /*

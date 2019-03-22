@@ -2,6 +2,7 @@
 
 const copyObject = require('./helpers/copyObject');
 const createValidator = require('./helpers/createValidator');
+const haversine = require('./helpers/haversine');
 
 const compareString = (a, b, descend) => (descend ? b.localeCompare(a) : a.localeCompare(b));
 const compareNumber = (a, b, descend) => (descend ? b - a : a - b);
@@ -11,15 +12,17 @@ function finalizeQuery(returnClone) {
     this.slicedItems.sort((a, b) => {
       for (let i = 0, l = this.sorts.length; i < l; i += 1) {
         const sortEntry = this.sorts[i];
-        if (typeof sortEntry === 'function') {
-          return sortEntry(a, b);
-        }
-        if (Array.isArray(sortEntry) === true && sortEntry.length === 2 && typeof sortEntry[0] === 'string' && typeof sortEntry[1] === 'boolean') {
+        if (sortEntry.length === 1) {
+          // sortBy
+          const [sortFn] = sortEntry;
+          return sortFn(a, b);
+        } if (sortEntry.length === 2) {
+          // ascend, descend
           const [field, fieldDescend] = sortEntry;
           if (typeof a[field] !== typeof b[field]) { // If field of both slicedItems don't match: EXIT LOOP
-            break;
+            throw Error(`Unexpected typeof mismatch at "${field}" field.`);
           } else if (typeof a[field] !== 'string' && typeof a[field] !== 'number') { // If both item fields are't "string" or "number": EXIT LOOP
-            break;
+            throw Error(`Unexpected non-string & non-number value at "${field}" field.`);
           } else if (a[field] === b[field]) { // If value of both slicedItems are equal: SKIP SORT
             continue;
           } else if (typeof a[field] === 'string') {
@@ -27,6 +30,14 @@ function finalizeQuery(returnClone) {
           } else if (typeof a[field] === 'number') {
             return compareNumber(a[field], b[field], fieldDescend);
           }
+        } else if (sortEntry.length === 4) {
+          // ascendHaversine, descendHaversine
+          const [field, latitude, longitude, fieldDescend] = sortEntry;
+          return compareNumber(
+            haversine(latitude, longitude, a[field][0], a[field][1]),
+            haversine(latitude, longitude, b[field][0], b[field][1]),
+            fieldDescend,
+          );
         } else {
           throw Error('finalizeQuery : unknown "sortEntry" type');
         }
@@ -79,6 +90,7 @@ class Query {
     this.selectedFields = [];
     this.hiddenFields = [];
     this.finalized = false;
+    this.schema = table.schema;
     this.schemaKeys = Object.keys(table.schema);
   }
 
@@ -102,6 +114,12 @@ class Query {
     const validate = createValidator('ascend');
     validate('field').asString(field);
     validate('field').asOneOf(this.schemaKeys, field);
+    if (this.schema[field].type !== 'array') {
+      throw Error(`@ascend : invalid field "${field}", must be an array field`);
+    }
+    if (this.schema[field].accept !== 'string' && this.schema[field].accept !== 'number') {
+      throw Error(`@ascend : invalid array field "${field}", must only accept "string" or "number"`);
+    }
     if (this.finalized) throw Error('@ascend : Query must not be finalized yet');
     this.sorts.push([field, false]);
     return this;
@@ -111,8 +129,48 @@ class Query {
     const validate = createValidator('descend');
     validate('field').asString(field);
     validate('field').asOneOf(this.schemaKeys, field);
+    if (this.schema[field].type !== 'array') {
+      throw Error(`@ascend : invalid field "${field}", must be an array field`);
+    }
+    if (this.schema[field].accept !== 'string' && this.schema[field].accept !== 'number') {
+      throw Error(`@ascend : invalid array field "${field}", must only accept "string" or "number"`);
+    }
     if (this.finalized) throw Error('@descend : Query must not be finalized yet');
     this.sorts.push([field, true]);
+    return this;
+  }
+
+  ascendHaversine(field, latitude, longitude) {
+    const validate = createValidator('ascend');
+    validate('field').asString(field);
+    validate('field').asOneOf(this.schemaKeys, field);
+    validate('latitude').asNumber(latitude);
+    validate('longitude').asNumber(longitude);
+    if (this.schema[field].type !== 'array') {
+      throw Error(`@ascend : invalid field "${field}", must be an array field`);
+    }
+    if (this.schema[field].accept !== 'string' && this.schema[field].accept !== 'number') {
+      throw Error(`@ascend : invalid array field "${field}", must only accept "string" or "number"`);
+    }
+    if (this.finalized) throw Error('@ascend : Query must not be finalized yet');
+    this.sorts.push([field, latitude, longitude, false]);
+    return this;
+  }
+
+  descendHaversine(field, latitude, longitude) {
+    const validate = createValidator('descend');
+    validate('field').asString(field);
+    validate('field').asOneOf(this.schemaKeys, field);
+    validate('latitude').asNumber(latitude);
+    validate('longitude').asNumber(longitude);
+    if (this.schema[field].type !== 'array') {
+      throw Error(`@ascend : invalid field "${field}", must be an array field`);
+    }
+    if (this.schema[field].accept !== 'string' && this.schema[field].accept !== 'number') {
+      throw Error(`@ascend : invalid array field "${field}", must only accept "string" or "number"`);
+    }
+    if (this.finalized) throw Error('@descend : Query must not be finalized yet');
+    this.sorts.push([field, latitude, longitude, true]);
     return this;
   }
 
@@ -120,7 +178,7 @@ class Query {
     const validate = createValidator('sortBy');
     validate('sortFn').asFunction(sortFn);
     if (this.finalized) throw Error('@sortBy : Query must not be finalized yet');
-    this.sorts.push(sortFn);
+    this.sorts.push([sortFn]);
     return this;
   }
 
@@ -129,6 +187,9 @@ class Query {
     validate('field').asString(field);
     validate('field').asOneOf(this.schemaKeys, field);
     validate('value').asNumber(value);
+    if (this.schema[field].type !== 'number') {
+      throw Error(`@ascend : invalid field "${field}", must be a number field`);
+    }
     if (this.finalized) throw Error('@gt : Query must not be finalized yet');
     this.slicedItems = this.slicedItems.filter(item => Number.isFinite(item[field]) && item[field] > value);
     return this;
@@ -139,6 +200,9 @@ class Query {
     validate('field').asString(field);
     validate('field').asOneOf(this.schemaKeys, field);
     validate('value').asNumber(value);
+    if (this.schema[field].type !== 'number') {
+      throw Error(`@ascend : invalid field "${field}", must be a number field`);
+    }
     if (this.finalized) throw Error('@gte : Query must not be finalized yet');
     this.slicedItems = this.slicedItems.filter(item => Number.isFinite(item[field]) && item[field] >= value);
     return this;
@@ -149,6 +213,9 @@ class Query {
     validate('field').asString(field);
     validate('field').asOneOf(this.schemaKeys, field);
     validate('value').asNumber(value);
+    if (this.schema[field].type !== 'number') {
+      throw Error(`@ascend : invalid field "${field}", must be a number field`);
+    }
     if (this.finalized) throw Error('@lt : Query must not be finalized yet');
     this.slicedItems = this.slicedItems.filter(item => Number.isFinite(item[field]) && item[field] < value);
     return this;
@@ -159,6 +226,9 @@ class Query {
     validate('field').asString(field);
     validate('field').asOneOf(this.schemaKeys, field);
     validate('value').asNumber(value);
+    if (this.schema[field].type !== 'number') {
+      throw Error(`@ascend : invalid field "${field}", must be a number field`);
+    }
     if (this.finalized) throw Error('@lte : Query must not be finalized yet');
     this.slicedItems = this.slicedItems.filter(item => Number.isFinite(item[field]) && item[field] <= value);
     return this;
@@ -186,6 +256,9 @@ class Query {
     const validate = createValidator('has');
     validate('field').asString(field);
     validate('field').asOneOf(this.schemaKeys, field);
+    if (this.schema[field].type !== 'array') {
+      throw Error(`@ascend : invalid field "${field}", must be an array field`);
+    }
     if (this.finalized) throw Error('@has : Query must not be finalized yet');
     this.slicedItems = this.slicedItems.filter(item => Array.isArray(item[field]) && (item[field]).includes(value));
     return this;
@@ -196,6 +269,9 @@ class Query {
     validate('field').asString(field);
     validate('field').asOneOf(this.schemaKeys, field);
     validate('values').asArray(values);
+    if (this.schema[field].type !== 'array') {
+      throw Error(`@ascend : invalid field "${field}", must be an array field`);
+    }
     if (this.finalized) throw Error('@hasAnyOf : Query must not be finalized yet');
     this.slicedItems = this.slicedItems.filter(item => Array.isArray(item[field]) && values.some(value => (item[field]).includes(value)));
     return this;
@@ -206,6 +282,9 @@ class Query {
     validate('field').asString(field);
     validate('field').asOneOf(this.schemaKeys, field);
     validate('values').asArray(values);
+    if (this.schema[field].type !== 'array') {
+      throw Error(`@ascend : invalid field "${field}", must be an array field`);
+    }
     if (this.finalized) throw Error('@hasAllOf : Query must not be finalized yet');
     this.slicedItems = this.slicedItems.filter(item => Array.isArray(item[field]) && values.every(value => (item[field]).includes(value)));
     return this;
@@ -216,6 +295,9 @@ class Query {
     validate('field').asString(field);
     validate('field').asOneOf(this.schemaKeys, field);
     validate('values').asArray(values);
+    if (this.schema[field].type !== 'array') {
+      throw Error(`@ascend : invalid field "${field}", must be an array field`);
+    }
     if (this.finalized) throw Error('@hasNoneOfAny : Query must not be finalized yet');
     this.slicedItems = this.slicedItems.filter(item => Array.isArray(item[field]) && values.some(value => (item[field]).includes(value) === false));
     return this;
@@ -226,6 +308,9 @@ class Query {
     validate('field').asString(field);
     validate('field').asOneOf(this.schemaKeys, field);
     validate('values').asArray(values);
+    if (this.schema[field].type !== 'array') {
+      throw Error(`@ascend : invalid field "${field}", must be an array field`);
+    }
     if (this.finalized) throw Error('@hasNoneOfAll : Query must not be finalized yet');
     this.slicedItems = this.slicedItems.filter(item => Array.isArray(item[field]) && values.every(value => (item[field]).includes(value) === false));
     return this;
