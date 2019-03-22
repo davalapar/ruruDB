@@ -2,8 +2,7 @@
   "name": "rurudb",
   "version": "9.0.0",
   "description": "RuruDB is a document database with basic features for prototyping purposes.",
-  "main": "./lib/main.js",
-  "types": "./lib/main.d.ts",
+  "main": "./index.js",
   "author": "davalapar <davalapar@gmail.com>",
   "license": "MIT",
   "dependencies": {

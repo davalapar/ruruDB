@@ -108,8 +108,6 @@ class Database {
     this.mainFd = 0;
     this.tempFd = 0;
     this.recentFd = 0;
-    this.initialized = false;
-    this.initializing = false;
 
     // new:
     this.loadedTables = undefined;
@@ -162,34 +160,42 @@ class Database {
     }
     validate('itemSchema').asObject(itemSchema);
     validate('outdatedItemUpdater').asFunction(outdatedItemUpdater);
-    validateSchema(itemSchema);
+    const schema = copyObject({
+      id: { type: 'string', default: '' },
+      ...itemSchema,
+    }, true);
+    validateSchema(schema);
     const tableData = this.loadedTables.find(t => t[0] === tableLabel);
     if (tableData === undefined) {
       if (shouldExist === true) {
         throw Error(`initTable : table "${tableLabel}" not found`);
       } else {
         // create:
-        const table = new Table(tableLabel, this, itemSchema);
+        const table = new Table(tableLabel, this, schema);
         this.tables.set(tableLabel, table);
       }
-    }
-    // populate:
-    const items = tableData[1];
-    const table = new Table(tableLabel, this, itemSchema);
-    for (let a = 0, b = items.length; a < b; a += 1) {
-      const loadedItem = items[a];
-      try {
-        validateLoadedItem(itemSchema, loadedItem);
-        table.index.set(loadedItem.id, copyObject(loadedItem, true));
-      } catch (e) {
-        const updatedItem = outdatedItemUpdater(loadedItem);
-        validate('updatedItem').asObject(updatedItem);
-        validateLoadedItem(itemSchema, updatedItem);
-        table.index.set(updatedItem.id, copyObject(updatedItem, true));
-        this.outdatedItemsUpdated = true;
+    } else {
+      // populate:
+      const items = tableData[1];
+      const table = new Table(tableLabel, this, schema);
+      for (let a = 0, b = items.length; a < b; a += 1) {
+        const loadedItem = items[a];
+        try {
+          validateLoadedItem(schema, loadedItem);
+          table.index.set(loadedItem.id, copyObject(loadedItem, true));
+        } catch (e1) {
+          try {
+            const updatedItem = outdatedItemUpdater(loadedItem);
+            validateLoadedItem(schema, updatedItem);
+            table.index.set(updatedItem.id, copyObject(updatedItem, true));
+            this.outdatedItemsUpdated = true;
+          } catch (e2) {
+            throw Error('initTable : "outdatedItemUpdater" failed to produce valid "updatedItem"');
+          }
+        }
       }
+      this.tables.set(tableLabel, table);
     }
-    this.tables.set(tableLabel, table);
   }
 
   initKVTable(tableLabel, shouldExist) {
@@ -319,6 +325,9 @@ class Database {
       }
       this.loadedTables = dataTables;
       this.loadedKVTables = dataKVTables;
+    } else {
+      this.loadedTables = [];
+      this.loadedKVTables = [];
     }
   }
 
@@ -459,11 +468,11 @@ class Database {
   }
 
   async save() {
-    if (this.initialized === false) {
-      throw Error('@save : Cannot call "save" on non-initialized database.');
+    if (this.served === false) {
+      throw Error('@save : Cannot call "save" on non-served database.');
     }
     await this.internalSave();
   }
 }
 
-module.exports = { Database };
+module.exports = Database;

@@ -1,5 +1,5 @@
 const isPlainObject = require('lodash/isPlainObject');
-const { copyArray } = require('./copyArray');
+const copyArray = require('./copyArray');
 
 const copyObject = (target, freeze) => {
   if (isPlainObject(target) === false) {
@@ -52,4 +52,4 @@ const copyObject = (target, freeze) => {
   return item;
 };
 
-module.exports = { copyObject };
+module.exports = copyObject;

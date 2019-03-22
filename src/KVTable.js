@@ -1,11 +1,8 @@
 
-const Database = require('./Database');
 const createValidator = require('./helpers/createValidator');
 
 class KVTable {
   constructor(label, database) {
-    const validate = createValidator('constructor');
-    validate('database').asInstanceOf(Database, database);
     this.label = label;
     this.database = database;
     this.index = new Map();
@@ -51,4 +48,4 @@ class KVTable {
   }
 }
 
-module.exports = { KVTable };
+module.exports = KVTable;

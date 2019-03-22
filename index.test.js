@@ -1,32 +1,40 @@
 /* eslint-disable no-console */
 
-const { Query, Database } = require('./index');
+const { Database } = require('./index');
 
 const db = new Database({
   filename: 'test',
   directory: './temp',
   saveFormat: 'readable_json',
   logFunction: console.log,
-  schemas: {
-    Members: {
+});
+
+beforeAll(async () => {
+  await db.loadDatabaseFile();
+  db.initTable(
+    'Members',
+    {
       name: { type: 'string', default: '' },
       age: { type: 'number', default: 0 },
       onboarded: { type: 'boolean', default: false },
       roles: { type: 'array', accept: 'string' },
-      address: { type: 'string', default: '' },
     },
-  },
-  updateFunctions: {
-    Members: item => ({
-      ...item,
-    }),
-  },
+    () => {},
+  );
+  await db.serve();
 });
 
-beforeAll(async () => {
-  await db.initialize();
+test('Members', async () => {
+  const Members = db.getTable('Members');
+  await Members.insertItem(Members.randomItemId(), {
+    name: 'RuruDB',
+    age: 23,
+    onboarded: true,
+    roles: ['user', 'admin'],
+  });
 });
 
+/*
 test('t1: table label', async () => {
   const t1 = db.table('t1');
   await t1.clear();
@@ -314,12 +322,4 @@ test('t24: KVTable 1', async () => {
   await t24.clear();
 });
 
-test('t25', async () => {
-  const Members = db.table('Members');
-  await Members.insertItem(Members.randomItemId(), {
-    name: 'RuruDB',
-    age: 23,
-    onboarded: true,
-    roles: ['user', 'admin'],
-  });
-});
+*/

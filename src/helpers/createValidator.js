@@ -60,4 +60,4 @@ const createValidator = (scope) => {
   };
 };
 
-module.exports = { createValidator };
+module.exports = createValidator;

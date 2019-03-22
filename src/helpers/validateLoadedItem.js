@@ -118,4 +118,4 @@ const validateLoadedItem = (schema, target) => {
   }
 };
 
-module.exports = { validateLoadedItem };
+module.exports = validateLoadedItem;

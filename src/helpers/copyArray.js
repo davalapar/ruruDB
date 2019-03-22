@@ -1,4 +1,4 @@
-const { copyObject } = require('./copyObject');
+const copyObject = require('./copyObject');
 
 const copyArray = (target, freeze) => {
   if (Array.isArray(target) === false) {
@@ -47,4 +47,4 @@ const copyArray = (target, freeze) => {
   return item;
 };
 
-module.exports = { copyArray };
+module.exports = copyArray;

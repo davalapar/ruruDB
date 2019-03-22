@@ -19,9 +19,19 @@
 
 const validateInsertedUpdatedItem = (schema, target) => {
   if (schema === undefined) {
-    throw Error('@validateInsertedUpdatedItem : "schema" must not be undefined.');
+    throw Error('Validation : "schema" must not be undefined.');
   }
   const schemaKeys = Object.keys(schema);
+
+  const targetKeys = Object.keys(target);
+
+  for (let i = 0, l = targetKeys.length; i < l; i += 1) {
+    const targetKey = targetKeys[i];
+    if (schemaKeys.includes(targetKey) === false) {
+      throw Error(`Validation : Unexpected "${targetKey}" field in target`);
+    }
+  }
+
   const validated = {};
   for (let i = 0, l = schemaKeys.length; i < l; i += 1) {
     const schemaKey = schemaKeys[i];
@@ -35,7 +45,7 @@ const validateInsertedUpdatedItem = (schema, target) => {
         }
         // If it's set in target, we type-check it.
         if (typeof target[schemaKey] !== 'boolean') {
-          throw Error(`@validateInsertedUpdatedItem : "${schemaKey}" at target must be typeof boolean.`);
+          throw Error(`Validation : "${schemaKey}" at target must be typeof boolean.`);
         }
         validated[schemaKey] = target[schemaKey];
         break;
@@ -48,7 +58,7 @@ const validateInsertedUpdatedItem = (schema, target) => {
         }
         // If it's set in target, we type-check it.
         if (typeof target[schemaKey] !== 'string') {
-          throw Error(`@validateInsertedUpdatedItem : "${schemaKey}" at target must be typeof string.`);
+          throw Error(`Validation : "${schemaKey}" at target must be typeof string.`);
         }
         validated[schemaKey] = target[schemaKey];
         break;
@@ -61,11 +71,11 @@ const validateInsertedUpdatedItem = (schema, target) => {
         }
         // If it's set in target, we type-check it.
         if (typeof target[schemaKey] !== 'number') {
-          throw Error(`@validateInsertedUpdatedItem : "${schemaKey}" at target must be typeof number.`);
+          throw Error(`Validation : "${schemaKey}" at target must be typeof number.`);
         } else if (Number.isNaN(target[schemaKey]) === true) {
-          throw Error(`@validateInsertedUpdatedItem : "${schemaKey}" at target must not be NaN.`);
+          throw Error(`Validation : "${schemaKey}" at target must not be NaN.`);
         } else if (Number.isFinite(target[schemaKey]) === false) {
-          throw Error(`@validateInsertedUpdatedItem : "${schemaKey}" at target must be finite.`);
+          throw Error(`Validation : "${schemaKey}" at target must be finite.`);
         }
         validated[schemaKey] = target[schemaKey];
         break;
@@ -79,14 +89,14 @@ const validateInsertedUpdatedItem = (schema, target) => {
         // If it's set in target, we type-check it.
         const targetValue = target[schemaKey];
         if (Array.isArray(targetValue) === false) {
-          throw Error(`@validateInsertedUpdatedItem : "${schemaKey}" at target must be a plain array.`);
+          throw Error(`Validation : "${schemaKey}" at target must be a plain array.`);
         }
         switch (schemaValue.accept) {
           case 'boolean': {
             for (let a = 0, b = targetValue.length; a < b; a += 1) {
               const innerValue = targetValue[a];
               if (typeof innerValue !== 'boolean') {
-                throw Error(`@validateInsertedUpdatedItem : index "${a}" of "${schemaKey}" at target must be typeof boolean.`);
+                throw Error(`Validation : index "${a}" of "${schemaKey}" at target must be typeof boolean.`);
               }
             }
             break;
@@ -95,7 +105,7 @@ const validateInsertedUpdatedItem = (schema, target) => {
             for (let a = 0, b = targetValue.length; a < b; a += 1) {
               const innerValue = targetValue[a];
               if (typeof innerValue !== 'string') {
-                throw Error(`@validateInsertedUpdatedItem : index "${a}" of "${schemaKey}" at target must be typeof string.`);
+                throw Error(`Validation : index "${a}" of "${schemaKey}" at target must be typeof string.`);
               }
             }
             break;
@@ -104,28 +114,28 @@ const validateInsertedUpdatedItem = (schema, target) => {
             for (let a = 0, b = targetValue.length; a < b; a += 1) {
               const innerValue = targetValue[a];
               if (typeof innerValue !== 'number') {
-                throw Error(`@validateInsertedUpdatedItem : index "${a}" of "${schemaKey}" at target must be typeof number.`);
+                throw Error(`Validation : index "${a}" of "${schemaKey}" at target must be typeof number.`);
               } else if (Number.isNaN(schemaValue.default) === true) {
-                throw Error(`@validateInsertedUpdatedItem : index "${a}" of "${schemaKey}" at target must not be NaN.`);
+                throw Error(`Validation : index "${a}" of "${schemaKey}" at target must not be NaN.`);
               } else if (Number.isFinite(schemaValue.default) === false) {
-                throw Error(`@validateInsertedUpdatedItem : index "${a}" of "${schemaKey}" at target must be finite.`);
+                throw Error(`Validation : index "${a}" of "${schemaKey}" at target must be finite.`);
               }
             }
             break;
           }
           default: {
-            throw Error(`@validateInsertedUpdatedItem : "accept" at "${schemaKey}" must be 'boolean'|'string'|'number'.`);
+            throw Error(`Validation : "accept" at "${schemaKey}" must be 'boolean'|'string'|'number'.`);
           }
         }
         validated[schemaKey] = [...target[schemaKey]];
         break;
       }
       default: {
-        throw Error(`@validateInsertedUpdatedItem : "type" must be 'boolean'|'string'|'number'|'array', got "${schemaValue.type}".`);
+        throw Error(`Validation : "type" must be 'boolean'|'string'|'number'|'array', got "${schemaValue.type}".`);
       }
     }
   }
   return validated;
 };
 
-module.exports = { validateInsertedUpdatedItem };
+module.exports = validateInsertedUpdatedItem;

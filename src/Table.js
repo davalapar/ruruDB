@@ -5,14 +5,10 @@ const validateInsertedUpdatedItem = require('./helpers/validateInsertedUpdatedIt
 const copyObject = require('./helpers/copyObject');
 const createValidator = require('./helpers/createValidator');
 
-const Database = require('./Database');
 const Query = require('./Query');
-
 
 class Table {
   constructor(label, database, schema) {
-    const validate = createValidator('constructor');
-    validate('database').asInstanceOf(Database, database);
     this.label = label;
     this.database = database;
     this.index = new Map();
@@ -145,4 +141,4 @@ class Table {
   }
 }
 
-module.exports = { Table };
+module.exports = Table;
