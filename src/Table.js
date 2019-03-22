@@ -1,6 +1,5 @@
 
 const uuidv4 = require('uuid/v4');
-const isPlainObject = require('lodash/isPlainObject');
 
 const validateInsertedUpdatedItem = require('./helpers/validateInsertedUpdatedItem');
 const copyObject = require('./helpers/copyObject');
