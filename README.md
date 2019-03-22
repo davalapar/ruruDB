@@ -4,19 +4,22 @@
 
 RuruDB is a document database with basic features for prototyping purposes.
 
-## Perks
-
-- Written in `TypeScript` & has tests with `Jest`
-- Asynchronous `Database`, `Table` & `KVTables` methods
-- Synchronous `Query` methods, built-in
-- Uses low-level file descriptors for performance
-- Database file snapshots
+- Fully schema-based, with explicit field `type` and `default`
+  - string
+  - boolean
+  - number
+  - string array
+  - boolean array
+  - number array
 - Atomic database file saves
-  - Data is first written to `*.rrdb.temp`
-  - Stale data in `*.rrdb` is transferred to `*.rrdb.old`
-  - Data is finally written to `*.rrdb`
-- Supports `string`, `number`, `boolean`, `null`, `undefined`, `Object` & `Array` properties
-- Readable output, uses `JSON.stringify()` for encoding
+  - Data is first written to `*-temp.rrdb`
+  - If `snapshotInterval` has passed, copy `*-current.rrdb` to `*-DATE_TIME-snapshot.rrdb`
+  - Stale data in `*-current.rrdb` is transferred to `*-old.rrdb`
+  - Data is finally written to `*-curent.rrdb`
+- Adaptive file loads
+  - Data is first checked at `*-curent.rrdb`
+  - If not found, we check at `*-temp.rrdb`
+  - If not found, we check at `*-old.rrdb`
 
 ## Implementation Term Equivalents
 
@@ -28,155 +31,189 @@ RuruDB is a document database with basic features for prototyping purposes.
 | **Item Field** | Entity Property | Document Property | Row Column |
 | **Query** |Query | Query | Query |
 
-## `Database`
+## IMPORTANT
 
-```ts
-import { Database } from 'rurudb';
+- This module uses `Object.freeze` for immutability & performance
+- In JS engines, modifications made on frozen objects fail silently on non-strict mode
+- Therefore you must add `'use strict';` on your code to expose such errors
+- https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/freeze
+- For Babel users: https://babeljs.io/docs/en/next/babel-plugin-transform-strict-mode.html
+
+## Database
+
+- constructor(options) => Database
+  - `options.logFunction` Function
+  - `options.filename` String
+  - `options.directory` String
+  - `options.saveFormat` String
+    - `json`, `readable_json`, `msgpack`
+  - `options.msgpackBufferSize` Number Optional
+  - `options.snapshotInterval` String Optional
+- async loadDAtabaseFile() => undefined
+- initTable(tableLabel, itemSchema, outdatedItemUpdater, shouldExist) => undefined
+  - `tableLabel` String
+  - `itemSchema` Object Schema
+  - `outdatedItemUpdater` Function
+  - `shouldExist` Boolean Optional
+- initKVTable(tableLabel, shouldExist) => undefined
+  - `tableLabel` String
+  - `shouldExist` Boolean Optional
+- async serve() => undefined
+- getTable(tableLabel) => Table
+  - `tableLabel` String
+- getKVTable(tableLabel) => KVTable
+  - `tableLabel` String
+
+#### Example code
+
+```js
+// db.js
+
+const { Database } = require('rurudb');
 
 const db = new Database({
-  filename: 'mydbfile',
-  directory: './myfolder',
-  saveFormat: "msgpack",
-  msgpackBufferSize: 2 ** 22,
+  filename: 'test',
+  directory: './temp',
+  saveFormat: 'readable_json',
   logFunction: console.log,
 });
-await db.initialize();
+
+module.exports = db;
 ```
 
-| Code | Tests | Async? | Database Functions | Returns | Description |
-|:-:|:-:|:-:|:--|:-|:--|
-| `OK` | - | - | `new Database(options)` | `Database()` | Creates a database instance |
-| `OK` | - | `Yes` | `await Database().initialize()` | `Promise<void>` | Creates / loads the database file |
-| `OK` | - | - | `Database().useTable <Item> (label, mustExist)` | `Table()` | Selects / creates a table |
+```js
+// initialize.js
 
-#### Notes on `new Database(options)`
+const db = require('./db');
+
+const initialize = async () => {
+  await db.loadDatabaseFile();
+  db.initTable(
+    'Members',
+    {
+      name: { type: 'string', default: '' },
+      age: { type: 'number', default: 0 },
+      onboarded: { type: 'boolean', default: false },
+      roles: { type: 'array', accept: 'string' },
+    },
+    () => {},
+  );
+  await db.serve();
+};
+
+module.exports = initialize;
+```
+
+## Table
+
+- randomItemId() => String
+- async insertItem(id, data, returnClone) => Item
+  - `id` String
+  - `data` Object
+  - `returnClone` Boolean Optional
+- async updateItem(modifiedItem, returnClone) => Item
+  - `modifiedItem` Object
+  - `returnClone` Boolean Optional
+- async updateItemById(id, data, returnClone) => Item
+  - `id` String
+  - `data` Object
+  - `returnClone` Boolean Optional
+- async mergeItemById(id, data, returnClone) => Item
+  - `id` String
+  - `data` Object
+  - `returnClone` Boolean Optional
+- async removeItem(item) => undefined
+  - `item` Object
+- async removeItemById(id) => undefined
+  - `id` String
+- hasId(id) => Boolean
+  - `id` String
+- fetchItem(id, returnClone) => Item
+  - `id` String
+  - `returnClone` Boolean Optional
+- async clear() => undefined
+- async destroy() => undefined
+- query() => Query
+
+#### Table Notes
 
 - `directory` must start with `'./'`, ie `'./temp'`
 - `msgpackBufferSize` is required when using `msgpack` as value of `saveFormat`
 - `snapshotInterval` is only triggered when database has been modified
-```js
-interface DatabaseOptions {
-  filename: string;
-  directory: string;
-  saveFormat: "json"|"msgpack"|"readable_json";
-  snapshotInterval?: string; // https://www.npmjs.com/package/ms
-  msgpackBufferSize?: number;
-  logFunction?: Function;
-}
-```
 
+## KVTable
+- async set(key, value) => undefined
+  - `key` String
+  - `value` Any
+- has(key) => boolean
+  - `key` String
+- get(key) => Any
+  - `key` String
+- async delete(key) => undefined
+  - `key` String
+- asnyc clear() => undefined
+- async destroy() => undefined
 
-## `Table`
+## Query
 
-```ts
-import { Database, Table } from 'rurudb';
+- offset(value) => Query
+  - `value` Number
+- limit(value) => Query
+  - `value` Number
+- ascend(field) => Query
+  - `field` String StringField NumberField
+- descend(field) => Query
+  - `field` String StringField NumberField
+- sortBy(sortFn) => Query
+  - `sortFn` Function
+- gt(field, value) => Query
+  - `field` String NumberField
+  - `value` Number
+- gte(field, value) => Query
+  - `field` String NumberField
+  - `value` Number
+- lt(field, value) => Query
+  - `field` String NumberField
+  - `value` Number
+- lte(field, value) => Query
+  - `field` String NumberField
+  - `value` Number
+- eq(field, value) => Query
+  - `field` String AnyField
+  - `value` Any
+- neq(field, value) => Query
+  - `field` String AnyField
+  - `value` Any
+- has(field, value) => Query
+  - `field` String ArrayField
+  - `value` Any
+- hasAnyOf(field, values) => Query
+  - `field` String ArrayField
+  - `values` Array
+- hasAllOf(field, values) => Query
+  - `field` String ArrayField
+  - `values` Array
+- hasNoneOfAny(field, values) => Query
+  - `field` String ArrayField
+  - `values` Array
+- hasNoneOfAll(field, values) => Query
+  - `field` String ArrayField
+  - `values` Array
+- select(...fields) => Query
+  - `fields` String StringFields
+- hide(...fields) => Query
+  - `fields` String StringFields
+- filterBy(filterFn) => Query
+  - `filterFn` Function
+- results(returnClone) => Array
+  - `returnClone` Boolean Optional
+- firstResult(returnClone) => Item
+  - `returnClone` Boolean Optional
+- hasResults(returnClone) => Boolean
+  - `returnClone` Boolean Optional
+- countResults(returnClone) => Number
+  - `returnClone` Boolean Optional
 
-const db = new Database({
-  filename: 'mydbfile',
-  directory: './myfolder',
-  saveFormat: "msgpack",
-  msgpackBufferSize: 2 ** 22,
-  logFunction: console.log,
-});
-await db.initialize();
-
-interface User {
-  name: string;
-  age: number;
-}
-
-const users = new Table <User> ('users', db);
-
-const alice = await users.insertItem(users.randomItemId(), {
-  name: 'alice',
-  age: 27
-});
-```
-
-| Code | Tests | Async? | Table Functions | Returns | Description |
-|:-:|:-:|:-:|:--|:-|:--|
-| `OK` | - | - | `new Table <Item> (label, database)` | `Table()` | Selects / creates a table |
-| `OK` | - | - | `Table().randomItemId()` | `string` | Returns a uuidv4 string id |
-| `OK` | - | `Yes` | `await Table().insertItem(id, data)` | `Promise<Item>` | Inserts an item into a table |
-| `OK` | - | `Yes` | `await Table().updateItem(modifiedItem)` | `Promise<void>` | Update / overwrite an item |
-| `OK` | - | `Yes` | `await Table().updateItemByID(id, data)` | `Promise<Item>` | Update / overwrite an item, by ID |
-| `OK` | - | `Yes` | `await Table().mergeItemByID(id, data)` | `Promise<Item>` | Merges supplied data to an item, by ID |
-| `OK` | - | `Yes` | `await Table().removeItem(item)` | `Promise<void>` | Remove an item |
-| `OK` | - | `Yes` | `await Table().removeItemByID(id)` | `Promise<void>` | Remove an item, by ID |
-| `OK` | - | - | `Table().fetchItem(id)` | `Item` | Return an item, from ID |
-| `OK` | - | `Yes` | `await Table().clear()` | `Promise<void>` | Clear a table |
-| `OK` | - | `Yes` | `await Table().destroy()` | `Promise<void>` | Remove  a table |
-| `OK` | - | - | `Table().query()` | `Query()` | Creates a query against a table |
-
-
-## `KVTable`
-
-```ts
-import { Database, KVTable } from 'rurudb';
-
-const db = new Database({
-  filename: 'mydbfile',
-  directory: './myfolder',
-  saveFormat: "msgpack",
-  msgpackBufferSize: 2 ** 22,
-  logFunction: console.log,
-});
-await db.initialize();
-
-const settings = new KVTable <boolean> ('settings', db);
-
-await settings.set('somekey', 'somevalue');
-settings.has('somekey'); // true
-settings.get('somekey'); // 'somevalue'
-await settings.delete();
-settings.has('somekey'); // false
-await settings.clear();
-await settings.destroy();
-```
-
-| Code | Tests | Async? | Table Functions | Returns | Description |
-|:-:|:-:|:-:|:--|:-|:--|
-| `OK` | - | - | `new KVTable <Value> (label, database)` | `Table()` | Selects / creates a table |
-| `OK` | - | `Yes` | `await KVTable().set(key, value)` | `Promise<void>` | Sets a key value |
-| `OK` | - | - | `KVTable().has(key)` | `boolean` | Checks key existence |
-| `OK` | - | - | `KVTable().get(key)` | `Value` | Gets key value |
-| `OK` | - | `Yes` | `await KVTable().clear()` | `Promise<void>` | Clears KVTable |
-| `OK` | - | `Yes` | `await KVTable().destroy()` | `Promise<void>` | Removes KVTable |
-
-## `Query`
-
-```ts
-import { Query } from 'rurudb';
-```
-
-| Code | Tests | Async? | Functions | Returns | Description |
-|:-:|:-:|:-:|:--|:-|:--|
-| `OK` | - | - | `new Query <Item> (table)` | `Query()` | Creates a query against a table |
-| `OK` | - | - | `Query().offset(value)` | `Query()` | Sets offset of results to return |
-| `OK` | - | - | `Query().limit(value)` | `Query()` | Sets limit of results to return |
-| `OK` | - | - | `Query().ascend(field)` | `Query()` | Ascend results by a string / number field |
-| `OK` | - | - | `Query().descend(field)` | `Query()` | Descend results by a string / number field |
-| `OK` | - | - | `Query().gt(field, value)` | `Query()` | If field is greater than to value |
-| `OK` | - | - | `Query().gte(field, value)` | `Query()` | If field is greater than or equal to value |
-| `OK` | - | - | `Query().lt(field, value)` | `Query()` | If field is less than to value |
-| `OK` | - | - | `Query().lte(field, value)` | `Query()` | If field is less than or equal to value |
-| `OK` | - | - | `Query().eq(field, value)` | `Query()` | If field is equal to value |
-| `OK` | - | - | `Query().neq(field, value)` | `Query()` | If field is not equal to value |
-| `OK` | - | - | `Query().has(field, value)` | `Query()` | If array field has specified value |
-| `OK` | - | - | `Query().hasAnyOf(field, values)` | `Query()` | If array field has any of specified values |
-| `OK` | - | - | `Query().hasAllOf(field, values)` | `Query()` | If field has all of specified values |
-| `OK` | - | - | `Query().hasNoneOfAny(field, values)` | `Query()` | If array field has none of any specified values |
-| `OK` | - | - | `Query().hasNoneOfAll(field, values)` | `Query()` | If array field has none of all specified values |
-| `OK` | - | - | `Query().select(fields)` | `Query()` | Select fields |
-| `OK` | - | - | `Query().hide(fields)` | `Query()` | Hide fields |
-| `OK` | - | - | `Query().sortBy(sortFn)` | `Query()` | Sort by function, must return a `number` |
-| `OK` | - | - | `Query().filterBy(filterFn)` | `Query()` | Filter by function, must return a `boolean` |
-| `OK` | - | - | `Query().ids()` | `string[]` | Return query result `ids[]` |
-| `OK` | - | - | `Query().items()` | `Item[]` | Return query result `items[]` |
-| `OK` | - | - | `Query().firstId()` | `string|undefined` | Returns first query result `id` |
-| `OK` | - | - | `Query().firstItem()` | `Item|undefined` | Return first query result `Item`` |
-| `OK` | - | - | `Query().entries()` | `[string, Item][]` | Return query result `[id, item]` pairs |
-| `OK` | - | - | `Query().results()` | `[string[],Item[]]` | Return query results `[id[], item[]]` separated |
 
 #### Notes on `filterBy(filterFn)`
 
@@ -190,36 +227,10 @@ import { Query } from 'rurudb';
 - `sortBy`'s `sortFn` must accept `(a: Item, b: Item)` and return `number`
   - Check out `Array.sort` at MDN for reference
 
-#### Notes on `results()`
+#### Notes on `results(returnClone)`
 
-- Returned items are clones
-- Modifying them directly won't affect stored data, unless you use `Table.updateItem(item)` on them
-
-## Item Interface Support
-
-- Supported Keys
-  - string
-- Supported Values
-  - Boolean
-  - String
-  - Number
-  - Undefined
-  - Null
-  - Objects
-  - Arrays
-- Non-supported Values
-  - Symbols `(Impossible, values are runtime unique)`
-  - Class Objects `(Impossible, loses methods etc)`
-  - Class Instance Objects `(Impossible, loses methods etc)`
-  - Functions `(Impossible, loses context)`
-  - NaN `(No JSON.stringify support)`
-  - +Infinity `(No JSON.stringify support)`
-  - -Infinity `(No JSON.stringify support)`
-  - Typedarrays `(No JSON.stringify support)`
-  - Maps `(No JSON.stringify support)`
-  - Sets `(No JSON.stringify support)`
-  - WeakMaps `(No JSON.stringify support)`
-  - WeakSets `(No JSON.stringify support)`
+- Returned items are immutable / frozen objects, pass `returnClone=true` to return mutable objects
+- Modifying the results directly won't affect stored data, unless you use `Table.updateItem(item)` on them
 
 ## Changelog
 
@@ -307,5 +318,15 @@ import { Query } from 'rurudb';
   - Benchmark differences: `329KB @ json` becomes `126KB @ msgpack`
 - 8.0.x
   - Update `what-the-pack`
+- 9.0.0
+  - Refactor to Javascript from Typescript
+  - Fully schema-based
+  - Consistent & readable type-checks
+  - Use of frozen objects for immutability & performance
+  - Query helpers
+    - results()
+    - firstResult()
+    - hasResults()
+    - countResults()
 
 MIT | @davalapar
