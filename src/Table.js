@@ -9,6 +9,12 @@ const Query = require('./Query');
 
 class Table {
   constructor(label, database, schema) {
+    const validate = createValidator('constructor');
+    validate('label').asString(label);
+    validate('schema').asObject(schema);
+    if (typeof database !== 'object') {
+      throw Error('@constructor : "database" must be an object');
+    }
     this.label = label;
     this.database = database;
     this.index = new Map();

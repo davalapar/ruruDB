@@ -3,6 +3,11 @@ const createValidator = require('./helpers/createValidator');
 
 class KVTable {
   constructor(label, database) {
+    const validate = createValidator('constructor');
+    validate('label').asString(label);
+    if (typeof database !== 'object') {
+      throw Error('@constructor : "database" must be an object');
+    }
     this.label = label;
     this.database = database;
     this.index = new Map();
