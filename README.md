@@ -242,90 +242,8 @@ module.exports = initialize;
 
 ## Changelog
 
-- 1.0.0
-  - Feature-complete release
-- 1.0.1
-  - Remove incorrect types module for `moment`
-- 2.0.0
-  - Add internal check to ensure `Database().initialize()` is called
-  - Use `tinydate` instead of `moment`
-  - Add `saveAsFormatted` option
-  - Fix snapshot file corruption (wrong file descriptor referenced)
-- 2.1.0
-  - Fix internal loading (file re-save interference)
-- 2.2.0
-  - Fix bug on multiple same-table instances (existing table overwritten, no class instance re-use)
-  - Add internal checks in creating new tables to ensure database is initialized
-- 2.2.1
-  - Prevent multiple `Database().initialize()` calls
-  - Add `mustExist` parameter for `new Table(label, database, mustExist)` and `Database().useTable(label, mustExist)`
-- 2.2.2
-  - Stack multiple `Database().initialize()` calls into a single resolving promise
-- 3.0.0
-  - Rewrite `Query` to return `[ids, item]` format
-  - Add some basic tests for `Query`
-- 4.0.0
-  - Remove usage of Symbols and `// @ts-ignore` lines
-  - Change `Table().getItemById(id)` to `Table().fetchItem(id)`
-  - Remove `Table().getItemId(id)`
-  - Export `Item` interface
-  - Implement database file recovery / loading
-    - If the directory exists, check for files
-    - If `*.rrdb` exists, load it
-    - Otherwise if `*.rrdb.temp` exists, load it
-    - Otherwise if `*.rrdb.old` exists, load it
-    - Otherwise optionally create directory, and just save it as empty db
-- 4.1.0
-  - Restore interface support
-  ```ts
-  import { Database, Table, Item } from 'rurudb';
-  interface User extends Item {
-    id ?: string;
-    name: string;
-    age: number;
-  }
-  const db = new Database('test', './temp', false, '30m');
-  await db.initialize();
-  const users = new Table <User> ('users', db);
-  ```
-- 4.2.0 `¯\_(ツ)_/¯`
-  - Add `Query().ids()`, `Query().items()` & `Query().entries()`
-  - Prevent `Query()` mutation once any of `Query().ids()`, `Query().items()`, `Query().entries()` & `Query().results()` are already called
-- 5.0.0
-  - Add type checks to ensure parameters are plain objects
-  - Reduce db filesize (duplicate id entries)
-- 5.0.1
-  - Add `Query().firstId()` and `Query().firstItem()`
-- 6.0.0
-  - Remove `Transaction`, due to bugs introduced when involving `Query`
-- 6.1.0
-  - `Query().firstitem()` to `Query().firstItem()`
-- 6.2.0
-  - Fix faulty `Query().ascend()` & `Query().descend()`
-- 6.3.0
-  - Fix `Table().mergeItemById(id, data)`, new `item` not set in `Map`
-- 6.4.0
-  - Fix faulty `Query().select()` & `Query().hide()`
-- 7.0.0
-  - Added `KVTable()`
-  - Changed `Table().clearTable()` to `Table().clear()`
-  - Changed `Table().removeTable()` to `Table().destroy()`
-  - Changed `Table().createQuery()` to `Table().query()`
-  - Changed `Database().useTable()` to `Database().table(label)`
-  - Added `Database().kvtable(label)`
-  - Removed `mustExist` parameter on `new Table()`, now `new Table(id, database)`
-  - Added versioning on database files, load now checks for major semver version and expected db filename
-  - Snapshots now sourced from `main` instead of `old` file
-  - Fixed typos on Database pre-constructor
-- 8.0.0
-  - Rewrite `what-the-pack` msgpack encoder
-  - Add `what-the-pack` test coverage checks
-  - Create types for `what-the-pack`
-  - Use `*.prrdb` for "msgpack" databases
-  - Use `*.rrdb` for "json" and "readable_json" databases
-  - Benchmark differences: `329KB @ json` becomes `126KB @ msgpack`
-- 8.0.x
-  - Update `what-the-pack`
+- 1.x.x - 8.x.x
+  - Initial releases
 - 9.0.0
   - Refactor to Javascript from Typescript
   - Fully schema-based
@@ -337,10 +255,11 @@ module.exports = initialize;
     - hasResults()
     - countResults()
 - 9.1.x
-  - Haversine sort
+  - `Query.js` : Add Haversine sort methods
     - Query().ascendHaversine(field, latitude, longitude);
     - Query().descendHaversine(field, latitude, longitude);
-  - Fix typos in schema validation code
-  - Schema-based type-checks on `field` parameters of Query methods 
+  - `validateSchema.js` : Fix typos 
+  - `Query.js` : Schema-based type-checks on `field` parameters
+  - `validateLoadedItem.js` : Fix detection of unexpected keys
 
 MIT | @davalapar

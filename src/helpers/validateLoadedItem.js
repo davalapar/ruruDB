@@ -22,6 +22,16 @@ const validateLoadedItem = (schema, target) => {
     throw Error('@validateLoadedItem : "schema" must not be undefined.');
   }
   const schemaKeys = Object.keys(schema);
+
+  const targetKeys = Object.keys(target);
+
+  for (let i = 0, l = targetKeys.length; i < l; i += 1) {
+    const targetKey = targetKeys[i];
+    if (schemaKeys.includes(targetKey) === false) {
+      throw Error(`Validation : Unexpected "${targetKey}" field in target`);
+    }
+  }
+
   for (let i = 0, l = schemaKeys.length; i < l; i += 1) {
     const schemaKey = schemaKeys[i];
     const schemaValue = schema[schemaKey];
