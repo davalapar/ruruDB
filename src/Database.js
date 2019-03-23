@@ -164,7 +164,7 @@ class Database {
       id: { type: 'string', default: '' },
       ...itemSchema,
     }, true);
-    validateSchema(schema);
+    validateSchema(tableLabel, schema);
     const tableData = this.loadedTables.find(t => t[0] === tableLabel);
     if (tableData === undefined) {
       if (shouldExist === true) {
@@ -181,17 +181,13 @@ class Database {
       for (let a = 0, b = items.length; a < b; a += 1) {
         const loadedItem = items[a];
         try {
-          validateLoadedItem(schema, loadedItem);
+          validateLoadedItem(tableLabel, schema, loadedItem);
           table.index.set(loadedItem.id, copyObject(loadedItem, true));
         } catch (e1) {
-          try {
-            const updatedItem = outdatedItemUpdater(loadedItem);
-            validateLoadedItem(schema, updatedItem);
-            table.index.set(updatedItem.id, copyObject(updatedItem, true));
-            this.outdatedItemsUpdated = true;
-          } catch (e2) {
-            throw Error('initTable : "outdatedItemUpdater" failed to produce valid "updatedItem"');
-          }
+          const updatedItem = outdatedItemUpdater(loadedItem);
+          validateLoadedItem(tableLabel, schema, updatedItem);
+          table.index.set(updatedItem.id, copyObject(updatedItem, true));
+          this.outdatedItemsUpdated = true;
         }
       }
       this.tables.set(tableLabel, table);

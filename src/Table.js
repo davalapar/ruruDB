@@ -36,7 +36,7 @@ class Table {
     if (this.index.has(id)) {
       throw Error('@insertItem : Invalid "id", must not exist in table');
     }
-    const item = copyObject(validateInsertedUpdatedItem(this.schema, { id, ...data }), true);
+    const item = copyObject(validateInsertedUpdatedItem(this.label, this.schema, { id, ...data }), true);
     this.index.set(id, item);
     await this.database.save();
     if (returnClone === true) {
@@ -52,7 +52,7 @@ class Table {
     if (this.index.has(modifiedItem.id) === false) {
       throw Error('@updateItem : Invalid "modifiedItem", item "id" must exist in table');
     }
-    const item = copyObject(validateInsertedUpdatedItem(this.schema, modifiedItem), true);
+    const item = copyObject(validateInsertedUpdatedItem(this.label, this.schema, modifiedItem), true);
     this.index.set(item.id, item);
     await this.database.save();
     if (returnClone === true) {
@@ -71,7 +71,7 @@ class Table {
     if (this.index.has(id) === false) {
       throw Error('@updateItemById : Invalid "id", must exist in table');
     }
-    const item = copyObject(validateInsertedUpdatedItem(this.schema, { id, ...data }), true);
+    const item = copyObject(validateInsertedUpdatedItem(this.label, this.schema, { id, ...data }), true);
     this.index.set(id, item);
     await this.database.save();
     if (returnClone === true) {
@@ -91,7 +91,7 @@ class Table {
       throw Error('@mergeItemById : Invalid "id", "id" must exist in table');
     }
     const existing = this.index.get(id);
-    const item = copyObject(validateInsertedUpdatedItem(this.schema, { id, ...existing, ...data }), true);
+    const item = copyObject(validateInsertedUpdatedItem(this.label, this.schema, { id, ...existing, ...data }), true);
     this.index.set(id, item);
     await this.database.save();
     if (returnClone === true) {

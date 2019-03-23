@@ -1,6 +1,6 @@
 {
   "name": "rurudb",
-  "version": "9.1.1",
+  "version": "9.1.2",
   "description": "RuruDB is a document database with basic features for prototyping purposes.",
   "main": "./index.js",
   "author": "davalapar <davalapar@gmail.com>",

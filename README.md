@@ -261,5 +261,10 @@ module.exports = initialize;
   - `validateSchema.js` : Fix typos 
   - `Query.js` : Schema-based type-checks on `field` parameters
   - `validateLoadedItem.js` : Fix detection of unexpected keys
+  - `Database.js` : Make errors more verbose
+  - `Table.js` : Make errors more verbose
+  - `validateInsertedUpdatedItem.js` : Make errors more verbose
+  - `validateLoadedItem.js` : Make errors more verbose
+  - `validateSchema.js` : Make errors more verbose
 
 MIT | @davalapar
