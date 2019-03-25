@@ -164,11 +164,11 @@ module.exports = initialize;
   - `field` String StringField NumberField
 - descend(field) => Query
   - `field` String StringField NumberField
-- ascendHaversine(field, latitude, longitude);
+- ascendHaversine(field, latitude, longitude) => Query
   - `field` String StringField NumberArrayField
   - `latitude` Number
   - `longitude` Number
-- descendHaversine(field, latitude, longitude);
+- descendHaversine(field, latitude, longitude) => Query
   - `field` String StringField NumberArrayField
   - `latitude` Number
   - `longitude` Number
@@ -266,5 +266,7 @@ module.exports = initialize;
   - `validateInsertedUpdatedItem.js` : Make errors more verbose
   - `validateLoadedItem.js` : Make errors more verbose
   - `validateSchema.js` : Make errors more verbose
+  - `@9.1.3` `Query.js` : Fix `ascend()` and `descend()` parameter type checks
+  - `@9.1.3` `README.md` : Fix `ascendHaversine()` and `descendHaversine()` return values
 
 MIT | @davalapar

@@ -114,11 +114,8 @@ class Query {
     const validate = createValidator('ascend');
     validate('field').asString(field);
     validate('field').asOneOf(this.schemaKeys, field);
-    if (this.schema[field].type !== 'array') {
-      throw Error(`@ascend : invalid field "${field}", must be an array field`);
-    }
-    if (this.schema[field].accept !== 'string' && this.schema[field].accept !== 'number') {
-      throw Error(`@ascend : invalid array field "${field}", must only accept "string" or "number"`);
+    if (this.schema[field].type !== 'string' && this.schema[field].type !== 'number') {
+      throw Error(`@ascend : invalid field "${field}", must be a string field or number field`);
     }
     if (this.finalized) throw Error('@ascend : Query must not be finalized yet');
     this.sorts.push([field, false]);
@@ -129,11 +126,8 @@ class Query {
     const validate = createValidator('descend');
     validate('field').asString(field);
     validate('field').asOneOf(this.schemaKeys, field);
-    if (this.schema[field].type !== 'array') {
-      throw Error(`@ascend : invalid field "${field}", must be an array field`);
-    }
-    if (this.schema[field].accept !== 'string' && this.schema[field].accept !== 'number') {
-      throw Error(`@ascend : invalid array field "${field}", must only accept "string" or "number"`);
+    if (this.schema[field].type !== 'string' && this.schema[field].type !== 'number') {
+      throw Error(`@ascend : invalid field "${field}", must be a string field or number field`);
     }
     if (this.finalized) throw Error('@descend : Query must not be finalized yet');
     this.sorts.push([field, true]);
