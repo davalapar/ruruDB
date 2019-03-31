@@ -9,11 +9,11 @@ const Query = require('./Query');
 
 class Table {
   constructor(label, database, schema) {
-    const validate = createValidator('constructor');
+    const validate = createValidator(`${label} : constructor`);
     validate('label').asString(label);
     validate('schema').asObject(schema);
     if (typeof database !== 'object') {
-      throw Error('@constructor : "database" must be an object');
+      throw Error(`${label} constructor : "database" must be an object`);
     }
     this.label = label;
     this.database = database;
@@ -30,11 +30,11 @@ class Table {
   }
 
   async insertItem(id, data, returnClone) {
-    const validate = createValidator('insertItem');
+    const validate = createValidator(`${this.label} : insertItem`);
     validate('id').asString(id);
     validate('data').asObject(data);
     if (this.index.has(id)) {
-      throw Error('@insertItem : Invalid "id", must not exist in table');
+      throw Error(`${this.label} : insertItem : Invalid "id", must not exist in table`);
     }
     const item = copyObject(validateInsertedUpdatedItem(this.label, this.schema, { id, ...data }), true);
     this.index.set(id, item);
@@ -46,11 +46,11 @@ class Table {
   }
 
   async updateItem(modifiedItem, returnClone) {
-    const validate = createValidator('updateItem');
+    const validate = createValidator(`${this.label} : updateItem`);
     validate('modifiedItem').asObject(modifiedItem);
     validate('modifiedItem.id').asString(modifiedItem.id);
     if (this.index.has(modifiedItem.id) === false) {
-      throw Error('@updateItem : Invalid "modifiedItem", item "id" must exist in table');
+      throw Error(`${this.label} : updateItem : Invalid "modifiedItem", item "id" must exist in table`);
     }
     const item = copyObject(validateInsertedUpdatedItem(this.label, this.schema, modifiedItem), true);
     this.index.set(item.id, item);
@@ -62,14 +62,14 @@ class Table {
   }
 
   async updateItemById(id, data, returnClone) {
-    const validate = createValidator('updateItemById');
+    const validate = createValidator(`${this.label} : updateItemById`);
     validate('id').asString(id);
     validate('data').asObject(data);
     if (data.id !== undefined) {
-      throw Error('@updateItemById : Invalid "data", "id" must be "undefined"');
+      throw Error(`${this.label} : updateItemById : Invalid "data", "id" must be "undefined"`);
     }
     if (this.index.has(id) === false) {
-      throw Error('@updateItemById : Invalid "id", must exist in table');
+      throw Error(`${this.label} : updateItemById : Invalid "id", must exist in table`);
     }
     const item = copyObject(validateInsertedUpdatedItem(this.label, this.schema, { id, ...data }), true);
     this.index.set(id, item);
@@ -81,14 +81,14 @@ class Table {
   }
 
   async mergeItemById(id, data, returnClone) {
-    const validate = createValidator('mergeItemById');
+    const validate = createValidator(`${this.label} : mergeItemById`);
     validate('id').asString(id);
     validate('data').asObject(data);
     if (data.id !== undefined) {
-      throw Error('@mergeItemById : Invalid "data", "data" must not have "id" property');
+      throw Error(`${this.label} : mergeItemById : Invalid "data", "data" must not have "id" property`);
     }
     if (this.index.has(id) === false) {
-      throw Error('@mergeItemById : Invalid "id", "id" must exist in table');
+      throw Error(`${this.label} : mergeItemById : Invalid "id", "id" must exist in table`);
     }
     const existing = this.index.get(id);
     const item = copyObject(validateInsertedUpdatedItem(this.label, this.schema, { id, ...existing, ...data }), true);
@@ -101,37 +101,37 @@ class Table {
   }
 
   async removeItem(item) {
-    const validate = createValidator('removeItem');
+    const validate = createValidator(`${this.label} : removeItem`);
     validate('data').asObject(item);
     validate('item.id').asString(item.id);
     if (this.index.has(item.id) === false) {
-      throw Error('@removeItem : Invalid "item", "id" must exist in table');
+      throw Error(`${this.label} : removeItem : Invalid "item", "id" must exist in table`);
     }
     this.index.delete(item.id);
     await this.database.save();
   }
 
   async removeItemById(id) {
-    const validate = createValidator('removeItemById');
+    const validate = createValidator(`${this.label} : removeItemById`);
     validate('id').asString(id);
     if (this.index.has(id) === false) {
-      throw Error('@removeItemById : Invalid "id", "id" must exist in table');
+      throw Error(`${this.label} : removeItemById : Invalid "id", "id" must exist in table`);
     }
     this.index.delete(id);
     await this.database.save();
   }
 
   hasId(id) {
-    const validate = createValidator('hasId');
+    const validate = createValidator(`${this.label} : hasId`);
     validate('id').asString(id);
     return this.index.has(id);
   }
 
   fetchItem(id, returnClone) {
-    const validate = createValidator('fetchItem');
+    const validate = createValidator(`${this.label} : fetchItem`);
     validate('id').asString(id);
     if (this.index.has(id) === false) {
-      throw Error('@fetchItem : Invalid "id", "id" must exist in table');
+      throw Error(`${this.label} : fetchItem : Invalid "id", "id" must exist in table`);
     }
     const item = this.index.get(id);
     if (returnClone === true) {

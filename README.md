@@ -268,5 +268,6 @@ module.exports = initialize;
   - `validateSchema.js` : Make errors more verbose
   - `@9.1.3` `Query.js` : Fix `ascend()` and `descend()` parameter type checks
   - `@9.1.3` `README.md` : Fix `ascendHaversine()` and `descendHaversine()` return values
+  - `@9.1.4` `Table.js` : Fix error verbosity by showing table names
 
 MIT | @davalapar
