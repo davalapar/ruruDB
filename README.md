@@ -269,5 +269,6 @@ module.exports = initialize;
   - `@9.1.3` `Query.js` : Fix `ascend()` and `descend()` parameter type checks
   - `@9.1.3` `README.md` : Fix `ascendHaversine()` and `descendHaversine()` return values
   - `@9.1.4` `Table.js` : Fix error verbosity by showing table names
+  - `@9.1.5` `Table.js` : Fix `initKVTable()`
 
 MIT | @davalapar

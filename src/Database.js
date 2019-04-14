@@ -214,7 +214,7 @@ class Database {
       } else {
         // create:
         const table = new KVTable(tableLabel, this);
-        this.tables.set(tableLabel, table);
+        this.kvtables.set(tableLabel, table);
       }
     } else {
       // populate:
